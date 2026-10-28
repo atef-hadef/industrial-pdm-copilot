@@ -1,79 +1,114 @@
 # Industrial Predictive Maintenance Copilot
 
-> Prédire combien de cycles il reste à un turboréacteur avant sa panne (RUL), et présenter cette prédiction dans un tableau de bord de supervision prêt à l'emploi.
+**Prédire combien de cycles il reste à un turboréacteur avant sa panne (RUL), et transformer cette prédiction en supervision exploitable.**
 
-![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-EE4C2C?logo=pytorch&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)
-![Dataset](https://img.shields.io/badge/Dataset-NASA%20C--MAPSS-0B3D91)
+[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2DD4BF.svg)](LICENSE)
+
+![Démo du dashboard](assets/dashboard-demo.gif)
+
+---
+
+## Sommaire
+
+- [Le problème](#le-problème)
+- [Démo](#démo)
+- [Résultats](#résultats)
+- [Architecture](#architecture)
+- [Décisions d'ingénierie clés](#décisions-dingénierie-clés)
+- [Stack technique](#stack-technique)
+- [Lancer le projet](#lancer-le-projet)
+- [Structure du projet](#structure-du-projet)
+- [Feuille de route](#feuille-de-route)
+- [Licence](#licence)
 
 ---
 
 ## Le problème
 
-- **Maintenance réactive** : on répare après la panne. Cela entraîne un arrêt imprévu, un coût élevé et un risque pour la sécurité.
-- **Maintenance préventive** : on intervient à intervalles fixes, que la pièce soit usée ou non. On remplace souvent trop tôt, et parfois trop tard.
-- **Maintenance prédictive** : on estime la **durée de vie résiduelle (RUL)** de chaque machine à partir de ses capteurs, puis on intervient au bon moment. C'est l'objet de ce projet.
+| Approche | Principe | Limite |
+|---|---|---|
+| **Réactive** | On répare après la panne. | Arrêt imprévu, coût élevé, risque pour la sécurité. |
+| **Préventive** | On intervient à intervalles fixes. | On remplace souvent trop tôt, parfois trop tard. |
+| **Prédictive** | On estime la **durée de vie résiduelle (RUL)** de chaque machine à partir de ses capteurs. | C'est l'objet de ce projet : intervenir au bon moment. |
 
 ## Démo
 
-**Vue Flotte** : RUL prédite pour les 100 moteurs, classés par risque (critique < 30 cycles, alerte 30 à 60, sain ≥ 60).
+Le dashboard Streamlit adopte un style « salle de contrôle ». Il classe chaque moteur selon son niveau de risque : **critique** (RUL < 30 cycles), **alerte** (30 à 60) ou **sain** (≥ 60).
 
-![Dashboard - vue flotte](assets/dashboard-flotte.png)
-
-**Vue Moteur** : jauge de RUL et capteurs principaux d'un moteur. La zone grisée correspond aux 30 derniers cycles, ceux que lit le modèle.
-
-![Dashboard - vue moteur](assets/dashboard-moteur.png)
+<table>
+  <tr>
+    <td width="50%"><img src="assets/dashboard-flotte.png" alt="Vue Flotte"></td>
+    <td width="50%"><img src="assets/dashboard-moteur.png" alt="Vue Moteur"></td>
+  </tr>
+  <tr>
+    <td><b>Vue Flotte</b> : RUL prédite pour les 100 moteurs, triée par urgence, avec un registre et des badges de statut.</td>
+    <td><b>Vue Moteur</b> : jauge de RUL et capteurs principaux. La zone grisée correspond à la fenêtre de 30 cycles lue par le modèle.</td>
+  </tr>
+</table>
 
 ## Résultats
 
-| Élément | Valeur |
-|---|---|
-| Dataset | NASA C-MAPSS **FD001** (100 moteurs de test, 1 condition de vol, 1 mode de défaillance) |
-| Modèle | LSTM 2 couches (hidden 64), fenêtres de 30 cycles, 14 capteurs |
-| **RMSE test** | **13.47 cycles** |
-| **Score NASA** | **318.5** |
+Évaluation sur le jeu de **test** officiel FD001. Chaque moteur de test est évalué sur sa dernière fenêtre de 30 cycles, et la vraie RUL est plafonnée à 125, comme dans la littérature.
 
-- **Protocole** : chaque moteur de test est évalué sur sa dernière fenêtre de 30 cycles. La vraie RUL est plafonnée à 125, comme dans la littérature.
-- **Score NASA** : cette pénalité est asymétrique. Une prédiction **tardive** coûte plus cher qu'une prédiction précoce, car le moteur risque de casser avant l'intervention. Plus le score est bas, mieux c'est.
+| Dataset | Modèle | RMSE test ↓ | Score NASA ↓ |
+|---|---|---|---|
+| NASA C-MAPSS **FD001** (100 moteurs) | LSTM 2 couches, hidden 64, fenêtre 30 × 14 capteurs | **13.47 cycles** | **318.5** |
+
+![RUL prédite vs RUL réelle sur le test FD001](assets/eval-fd001.png)
+
+- **Proche de la panne** (RUL < 30) : les prédictions collent à la réalité. C'est la zone où une erreur coûte le plus cher.
+- **Milieu de vie** (RUL de 40 à 100) : l'erreur est plus forte, car le signal de dégradation y est encore faible.
+- **Score NASA** : la pénalité est asymétrique. Une prédiction **tardive** coûte plus cher qu'une prédiction précoce, car le moteur risque de casser avant l'intervention.
 - Ce résultat provient d'un seul entraînement (graine 42).
 
 ## Architecture
 
-```
- C-MAPSS brut (train / test / RUL)
-        │
-        ▼
- [1] Données        src/data/load.py         lecture, 26 colonnes nommées
-        │
-        ▼
- [2] Label RUL      src/data/labeling.py     RUL = cycle max − cycle courant, plafonnée à 125
-        │
-        ▼
- [3] Préparation    src/data/preprocess.py   14 capteurs utiles, min-max appris sur le train seul
-        │           src/data/windows.py      fenêtres glissantes (n, 30, 14) par moteur
-        ▼
- [4] Modèle         src/models/lstm.py       LSTM → RUL du dernier cycle de la fenêtre
-        │           src/models/train.py      split 80/20 par moteur, MSE + Adam, meilleur modèle sauvegardé
-        ▼
- [5] Évaluation     src/models/evaluate.py   dernière fenêtre de chaque moteur de test → RMSE + score NASA
-        │
-        ▼
- [6] Dashboard      src/dashboard/app.py     Streamlit + Plotly : vue flotte, vue moteur
+```mermaid
+flowchart LR
+    A["Données brutes<br/>C-MAPSS FD001"] --> B["Label RUL<br/>plafonnée à 125"]
+    B --> C["Fenêtres glissantes<br/>30 cycles × 14 capteurs"]
+    C --> D["LSTM<br/>PyTorch"]
+    D --> E["Évaluation<br/>RMSE + score NASA"]
+    E -->|modèle validé| F["Dashboard<br/>Streamlit + Plotly"]
 ```
 
-Trois choix évitent les fuites de données :
-- la validation se fait sur des **moteurs** jamais vus, et non sur des lignes tirées au hasard ;
-- le scaler est appris uniquement sur les moteurs d'entraînement ;
-- le test n'est utilisé qu'en `transform`, jamais en `fit`.
+| Étape | Module | Rôle |
+|---|---|---|
+| Données | [`src/data/load.py`](src/data/load.py) | Lecture des fichiers bruts, 26 colonnes nommées |
+| Label RUL | [`src/data/labeling.py`](src/data/labeling.py) | RUL = cycle max − cycle courant, plafonnée |
+| Préparation | [`src/data/preprocess.py`](src/data/preprocess.py) | 14 capteurs utiles, normalisation min-max |
+| Fenêtres | [`src/data/windows.py`](src/data/windows.py) | Fenêtres glissantes `(n, 30, 14)`, découpées par moteur |
+| Modèle | [`src/models/lstm.py`](src/models/lstm.py), [`train.py`](src/models/train.py) | LSTM, validation par moteur, sauvegarde du meilleur modèle |
+| Évaluation | [`src/models/evaluate.py`](src/models/evaluate.py) | RMSE, score NASA, graphique prédit vs réel |
+| Prédiction | [`src/models/predict.py`](src/models/predict.py) | Chargement du modèle et prédiction, partagés par l'évaluation et le dashboard |
+| Dashboard | [`src/dashboard/app.py`](src/dashboard/app.py) | Vues Flotte et Moteur |
 
-L'exploration des données est dans [notebooks/01_eda.ipynb](notebooks/01_eda.ipynb). Elle montre notamment que 7 capteurs sont constants en FD001 et sont donc retirés.
+L'exploration des données est dans [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb).
+
+## Décisions d'ingénierie clés
+
+**1. RUL plafonnée à 125 cycles (piecewise-linear)**
+En début de vie, un moteur est sain et ses capteurs sont stables : rien ne permet de distinguer une RUL de 300 d'une RUL de 150. Demander au modèle de prédire ces valeurs ne ferait qu'ajouter du bruit. La cible reste donc constante à 125, puis décroît linéairement jusqu'à 0. Pendant l'entraînement, elle est divisée par 125 (entre 0 et 1), ce qui accélère nettement l'apprentissage. Sans cette division, la RMSE de validation était encore de 47 après 20 epochs ; avec, elle descend à environ 16 dès la 5ᵉ epoch.
+
+**2. Fenêtres glissantes de 30 cycles**
+La dégradation est une **tendance**, invisible sur un seul point de mesure. Le LSTM lit donc 30 cycles consécutifs et prédit la RUL au dernier. Les fenêtres sont découpées **moteur par moteur**, si bien qu'aucune ne mélange deux moteurs. Sur le test, seule la dernière fenêtre de chaque moteur est utilisée, comme en conditions réelles.
+
+**3. Normalisation sans fuite de données**
+- La validation (80/20) se fait **par moteur** : les cycles d'un même moteur ne se retrouvent jamais des deux côtés.
+- Le scaler min-max est appris (`fit`) sur les seuls moteurs d'entraînement. Validation et test ne passent que par `transform`.
+- Les 7 capteurs constants en FD001 (repérés pendant l'exploration des données) sont retirés.
+
+**4. Une seule source de vérité pour la prédiction**
+[`src/models/predict.py`](src/models/predict.py) contient le seul code qui charge le modèle et calcule une RUL (dernière fenêtre, × 125, bornage dans [0, 125]). L'évaluation et le dashboard l'importent tous deux : le chiffre affiché à l'écran est celui qui est mesuré. Les paramètres (fenêtre, plafond, liste des capteurs) sont enregistrés **dans le checkpoint** et ne sont pas redéfinis ailleurs.
 
 ## Stack technique
 
 | Domaine | Outils |
 |---|---|
-| Langage | Python |
+| Langage | Python 3.13 |
 | Deep learning | PyTorch |
 | Données & ML | pandas, NumPy, scikit-learn |
 | Visualisation | Plotly, Matplotlib |
@@ -81,11 +116,11 @@ L'exploration des données est dans [notebooks/01_eda.ipynb](notebooks/01_eda.ip
 
 ## Lancer le projet
 
-**1. Installation** (Python 3.11 ou plus récent)
+**1. Installation**
 
 ```bash
-git clone <url-du-repo>
-cd <dossier-du-repo>
+git clone https://github.com/atef-hadef/industrial-pdm-copilot.git
+cd industrial-pdm-copilot
 python -m venv venv
 venv\Scripts\activate            # Windows — Linux/macOS : source venv/bin/activate
 pip install -r requirements.txt
@@ -93,22 +128,24 @@ pip install -r requirements.txt
 
 **2. Données** : le dataset n'est pas versionné. Téléchargez [NASA Turbofan Jet Engine Data Set](https://www.kaggle.com/datasets/behrad3d/nasa-cmaps) sur Kaggle (copie du jeu C-MAPSS de la NASA, licence CC0). Placez ensuite `train_FD001.txt`, `test_FD001.txt` et `RUL_FD001.txt` dans `data/raw/`.
 
-Pour vérifier le chargement :
 ```bash
-python -m src.data.load
+python -m src.data.load              # vérifie le chargement (shapes attendues)
 ```
 
 **3. Entraînement** : environ 2 minutes sur CPU. Le meilleur modèle et le scaler sont créés dans `models/`.
+
 ```bash
 python -m src.models.train
 ```
 
-**4. Évaluation sur le test** : la commande affiche la RMSE et le score NASA, et enregistre le graphique `reports/eval_fd001.png`.
+**4. Évaluation** : la commande affiche la RMSE et le score NASA, et enregistre le graphique dans `reports/eval_fd001.png`.
+
 ```bash
 python -m src.models.evaluate
 ```
 
 **5. Dashboard** : à lancer depuis la racine du repo, pour que le thème `.streamlit/config.toml` soit appliqué.
+
 ```bash
 streamlit run src/dashboard/app.py
 ```
@@ -116,8 +153,8 @@ streamlit run src/dashboard/app.py
 ## Structure du projet
 
 ```
-.
-├── assets/                 captures du dashboard (README)
+industrial-pdm-copilot/
+├── assets/                 GIF, captures et graphiques du README
 ├── data/
 │   ├── raw/                C-MAPSS brut (non versionné)
 │   └── processed/          données préparées (non versionné)
@@ -135,6 +172,7 @@ streamlit run src/dashboard/app.py
 ├── tests/
 ├── .streamlit/config.toml  thème sombre du dashboard
 ├── CHANGELOG.md
+├── LICENSE
 └── requirements.txt
 ```
 
@@ -150,3 +188,8 @@ streamlit run src/dashboard/app.py
 - [ ] **Palier 3 : Copilote IA générative (RAG).** Un agent qui part d'un moteur à risque, retrouve les procédures pertinentes dans `manuals/`, explique le diagnostic en **citant ses sources**, puis rédige un **ordre de travail** structuré (actions, priorité, fenêtre d'arrêt).
 
 L'historique détaillé des évolutions est dans [CHANGELOG.md](CHANGELOG.md).
+
+## Licence
+
+Distribué sous licence MIT. Voir [LICENSE](LICENSE).
+© 2026 Atef Ben Hadef
