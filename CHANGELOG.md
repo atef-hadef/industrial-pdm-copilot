@@ -30,6 +30,12 @@ Toutes les évolutions notables du projet sont consignées ici.
   - Le modèle est mis en cache (`@st.cache_resource`), ainsi que les prédictions de la flotte (`@st.cache_data`).
 - `requirements.txt` : ajout de `plotly` et `streamlit`.
 
+### Modifié
+- Dashboard, mise en forme :
+  - barre d'en-tête « Supervision prédictive de la flotte », avec une pastille d'état (moteurs · critiques · en alerte) ;
+  - jauge graduée de 0 à 125, avec la valeur affichée sobrement dessous, au format « N /125 cycles » ;
+  - espacements unifiés : 20 px entre toutes les cartes, même padding et même arrondi partout. Les espaceurs manuels sont supprimés, ainsi que la marge négative que Streamlit ajoute sous les blocs Markdown.
+
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
 - FD001 train fenêtré : X `(17731, 30, 14)`, y `(17731,)`. Après normalisation, les capteurs du test sortent légèrement de [0, 1] (de −0,04 à 1,08), ce qui est attendu.

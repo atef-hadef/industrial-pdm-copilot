@@ -45,9 +45,20 @@ CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Espacement unique, partagé par toutes les cartes (entre elles et à l'intérieur) */
+:root {{ --gap: 1.25rem; --pad: 1.25rem 1.4rem; --radius: 14px; }}
+
 html, body, [class*="css"], .stApp {{ font-family: 'Inter', sans-serif; }}
 .stApp {{ background: {BG}; }}
-.block-container {{ padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1500px; }}
+.block-container {{ padding-top: 2rem; padding-bottom: 3rem; max-width: 1500px; }}
+
+/* Zone principale (st.container key="page") : même écart vertical et horizontal partout */
+.st-key-page {{ gap: var(--gap); }}
+.st-key-page [data-testid="stHorizontalBlock"] {{ gap: var(--gap) !important; }}
+/* Streamlit met une marge de -16px sous chaque bloc Markdown : on l'annule pour garder --gap partout */
+.st-key-page [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+/* À l'intérieur d'une carte : écart plus serré entre le titre et le graphique */
+div[class*="st-key-card"] {{ gap: 0.75rem; }}
 #MainMenu, footer {{ visibility: hidden; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 
@@ -62,14 +73,29 @@ section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid
 .side-row {{ display: flex; justify-content: space-between; font-size: 0.85rem; color: {TEXT}; padding: 0.2rem 0; }}
 .side-row span:first-child {{ color: {MUTED}; }}
 
-/* Titres de page */
-.page-title {{ font-size: 1.9rem; line-height: 1.2; font-weight: 700; color: {TEXT}; letter-spacing: -0.02em; margin: 0; }}
-.page-sub {{ color: {MUTED}; font-size: 0.92rem; margin: 0.3rem 0 1.6rem 0; }}
+/* Barre d'en-tête : titre à gauche, pastille d'état de la flotte à droite */
+.topbar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;
+           background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius); padding: 0.9rem 1.4rem;
+           box-shadow: 0 4px 18px rgba(0,0,0,0.25); }}
+.topbar-title {{ display: flex; align-items: center; gap: 0.7rem; font-size: 1.2rem; font-weight: 700;
+                 color: {TEXT}; letter-spacing: -0.01em; }}
+.topbar-title::before {{ content: ""; width: 10px; height: 10px; border-radius: 3px; background: {ACCENT};
+                         box-shadow: 0 0 10px {ACCENT}; }}
+.status-pill {{ display: inline-flex; align-items: center; gap: 0.9rem; padding: 0.4rem 1rem; border-radius: 999px;
+                background: #121725; border: 1px solid {BORDER}; font-size: 0.85rem; color: {TEXT};
+                font-variant-numeric: tabular-nums; }}
+.status-pill .item {{ display: inline-flex; align-items: center; gap: 0.4rem; }}
+.status-pill .dot {{ width: 8px; height: 8px; border-radius: 50%; background: var(--c); }}
+.status-pill .sep {{ color: {BORDER}; }}
+
+/* Titres de page et de section */
+.page-title {{ font-size: 1.45rem; line-height: 1.2; font-weight: 700; color: {TEXT}; letter-spacing: -0.02em; margin: 0; }}
+.page-sub {{ color: {MUTED}; font-size: 0.9rem; margin: 0.3rem 0 0 0; }}
 .section-title {{ font-size: 1.02rem; font-weight: 600; color: {TEXT}; margin: 0 0 0.2rem 0; }}
-.section-sub {{ font-size: 0.82rem; color: {MUTED}; margin: 0 0 0.6rem 0; }}
+.section-sub {{ font-size: 0.82rem; color: {MUTED}; margin: 0; }}
 
 /* Cartes KPI */
-.kpi {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 14px; padding: 1.1rem 1.3rem;
+.kpi {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius); padding: var(--pad);
         box-shadow: 0 4px 18px rgba(0,0,0,0.25); position: relative; overflow: hidden; }}
 .kpi::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }}
 .kpi-label {{ font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: {MUTED}; }}
@@ -79,8 +105,8 @@ section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid
 .kpi-hint {{ font-size: 0.78rem; color: {MUTED}; margin-top: 0.35rem; }}
 
 /* Conteneurs "carte" autour des graphiques (st.container avec une clé card_*) */
-div[class*="st-key-card"] {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 14px;
-                             padding: 1.1rem 1.3rem; box-shadow: 0 4px 18px rgba(0,0,0,0.25); }}
+div[class*="st-key-card"] {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius);
+                             padding: var(--pad); box-shadow: 0 4px 18px rgba(0,0,0,0.25); }}
 
 /* Badges de statut */
 .badge {{ display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0.65rem; border-radius: 999px;
@@ -101,7 +127,10 @@ table.fleet tr:hover td {{ background: #20273A; }}
 .rulbar-fill {{ height: 100%; border-radius: 3px; background: var(--c); }}
 
 /* Infos moteur */
-.info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.4rem; }}
+.gauge-value {{ text-align: center; font-size: 1.6rem; font-weight: 600; color: {TEXT}; margin-top: -0.4rem;
+                font-variant-numeric: tabular-nums; }}
+.gauge-value span {{ font-size: 0.95rem; font-weight: 500; color: {MUTED}; margin-left: 0.2rem; }}
+.info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }}
 .info {{ background: #151A27; border: 1px solid {BORDER}; border-radius: 10px; padding: 0.7rem 0.9rem; }}
 .info-label {{ font-size: 0.7rem; color: {MUTED}; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }}
 .info-value {{ font-size: 1.15rem; font-weight: 600; color: {TEXT}; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }}
@@ -177,6 +206,25 @@ def style_fig(fig: go.Figure, height: int, top: int = 10) -> go.Figure:
 
 
 # --- Vues ----------------------------------------------------------------------------
+def render_topbar(fleet: pd.DataFrame) -> None:
+    """Barre d'en-tête : titre à gauche, pastille d'état de la flotte à droite."""
+    counts = fleet["status"].value_counts()
+    items = [
+        ("#64748B", f"{len(fleet)} moteurs"),
+        (STATUS_COLORS["Critique"], f"{counts.get('Critique', 0)} critiques"),
+        (STATUS_COLORS["Alerte"], f"{counts.get('Alerte', 0)} en alerte"),
+    ]
+    # Le point coloré porte le statut, le texte reste dans la couleur du texte (lisibilité)
+    pill = '<span class="sep">·</span>'.join(
+        f'<span class="item"><span class="dot" style="--c:{c}"></span>{label}</span>' for c, label in items
+    )
+    st.markdown(
+        '<div class="topbar"><div class="topbar-title">Supervision prédictive de la flotte</div>'
+        f'<div class="status-pill">{pill}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_kpis(fleet: pd.DataFrame) -> None:
     n_crit = int((fleet["status"] == "Critique").sum())
     n_alert = int((fleet["status"] == "Alerte").sum())
@@ -188,7 +236,6 @@ def render_kpis(fleet: pd.DataFrame) -> None:
     ]
     for col, card in zip(st.columns(4, gap="medium"), cards):
         col.markdown(card, unsafe_allow_html=True)
-    st.write("")
 
 
 def render_fleet(fleet: pd.DataFrame) -> None:
@@ -212,8 +259,6 @@ def render_fleet(fleet: pd.DataFrame) -> None:
         fig.update_xaxes(showgrid=False, showticklabels=False, title=None)
         fig.update_yaxes(title=dict(text="RUL prédite (cycles)", font=dict(color=MUTED)), range=[0, 130])
         st.plotly_chart(style_fig(fig, 360), use_container_width=True, config={"displayModeBar": False})
-
-    st.write("")
 
     # Tableau : trié par risque (RUL croissante), badge de statut et mini-barre de RUL
     with st.container(key="card_fleet_table"):
@@ -245,19 +290,19 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
         format_func=lambda u: f"Moteur {u:03d} · {by_unit.loc[u, 'status']} · RUL {by_unit.loc[u, 'rul_pred']:.0f} cycles",
     )
     row = by_unit.loc[unit]
-    color = STATUS_COLORS[row["status"]]
-    st.write("")
 
     left, right = st.columns([1, 2.2], gap="medium")
 
     with left, st.container(key="card_gauge"):
         section("RUL prédite", "Dernière fenêtre de 30 cycles")
         gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
+            # La valeur est affichée en HTML sous la jauge (Plotly la superpose à l'arc)
+            mode="gauge",
             value=row["rul_pred"],
-            number=dict(valueformat=".0f", font=dict(size=46, color=color)),
             gauge=dict(
-                axis=dict(range=[0, 125], tickwidth=1, tickcolor=BORDER, tickfont=dict(color=MUTED)),
+                # Échelle 0 -> 125 (plafond de RUL), graduée sur les seuils de risque
+                axis=dict(range=[0, 125], tickvals=[0, CRITICAL_RUL, ALERT_RUL, 90, 125],
+                          tickwidth=1, tickcolor=BORDER, tickfont=dict(color=MUTED)),
                 bar=dict(color=TEXT, thickness=0.22),
                 bgcolor="rgba(0,0,0,0)",
                 borderwidth=0,
@@ -268,10 +313,13 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
                 ],
             ),
         ))
-        st.plotly_chart(style_fig(gauge, 240, top=30), use_container_width=True, config={"displayModeBar": False})
+        style_fig(gauge, 210, top=20)
+        # Marges latérales plus larges : sinon les graduations 0 et 125 sont coupées
+        gauge.update_layout(margin=dict(l=30, r=30, b=0))
+        st.plotly_chart(gauge, use_container_width=True, config={"displayModeBar": False})
         st.markdown(
-            f'<div style="text-align:center;margin-top:-0.8rem;color:{MUTED};font-size:0.85rem">cycles restants estimés</div>'
-            f'<div style="text-align:center;margin:0.6rem 0 0.4rem 0">{badge(row["status"])}</div>'
+            f'<div class="gauge-value">{row["rul_pred"]:.0f}<span>/125 cycles</span></div>'
+            f'<div style="text-align:center;margin:0.4rem 0 0.75rem 0">{badge(row["status"])}</div>'
             '<div class="info-grid">'
             f'<div class="info"><div class="info-label">Cycles observés</div><div class="info-value">{row["cycles"]}</div></div>'
             f'<div class="info"><div class="info-label">RUL réelle</div><div class="info-value">{row["rul_true"]:.0f}</div></div>'
@@ -338,13 +386,17 @@ def main() -> None:
         "Vue Flotte": "État de santé de la flotte · RUL prédite par le LSTM sur la dernière fenêtre de chaque moteur",
         "Vue Moteur": "Diagnostic d'un moteur · RUL prédite et évolution des capteurs",
     }
-    st.markdown(f'<div class="page-title">{view}</div><div class="page-sub">{subtitles[view]}</div>', unsafe_allow_html=True)
-    render_kpis(fleet)
+    # Tout le contenu principal dans un seul conteneur : l'écart entre cartes y est fixé par --gap
+    with st.container(key="page"):
+        render_topbar(fleet)
+        st.markdown(f'<div class="page-title">{view}</div><div class="page-sub">{subtitles[view]}</div>',
+                    unsafe_allow_html=True)
+        render_kpis(fleet)
 
-    if view == "Vue Flotte":
-        render_fleet(fleet)
-    else:
-        render_engine(test, fleet)
+        if view == "Vue Flotte":
+            render_fleet(fleet)
+        else:
+            render_engine(test, fleet)
 
 
 main()
