@@ -2,6 +2,14 @@
 
 Toutes les évolutions notables du projet sont consignées ici.
 
+## Non publié
+
+### Ajouté
+- `src/data/labeling.py` : `add_rul(df, cap=125)` calcule la RUL du jeu train (cycle max du moteur − cycle courant), plafonnée à `cap` (RUL piecewise-linear) ; `cap=None` donne la RUL linéaire brute. Vérification via `python -m src.data.labeling`.
+
+### Constaté
+- FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
+
 ## v0.1 - chargement + EDA (2026-10-28)
 
 ### Ajouté
