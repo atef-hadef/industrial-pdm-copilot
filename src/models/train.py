@@ -1,6 +1,6 @@
-"""Entraînement du LSTM sur FD001, avec validation par moteur.
+"""LSTM training on FD001, with an engine-level validation split.
 
-Usage : python -m src.models.train
+Usage: python -m src.models.train
 """
 
 from pathlib import Path
@@ -25,10 +25,10 @@ SEED = 42
 def split_units(
     df: pd.DataFrame, val_frac: float = 0.2, seed: int = SEED
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Sépare les moteurs (et non les lignes) en entraînement / validation.
+    """Split the engines (not the rows) into training / validation.
 
-    Découper par ligne mettrait des cycles d'un même moteur des deux côtés :
-    le modèle serait validé sur des moteurs qu'il a déjà vus (fuite de données).
+    Splitting by row would put cycles of the same engine on both sides:
+    the model would be validated on engines it has already seen (data leakage).
     """
     units = df["unit_number"].unique()
     rng = np.random.default_rng(seed)
@@ -41,9 +41,9 @@ def split_units(
 def rmse(
     model: nn.Module, X: torch.Tensor, y: torch.Tensor, cap: int, batch_size: int = 1024
 ) -> float:
-    """RMSE en cycles sur tout un jeu de fenêtres (mode évaluation, sans dropout).
+    """RMSE in cycles over a whole set of windows (eval mode, no dropout).
 
-    Le modèle prédit la RUL divisée par cap : on remultiplie par cap pour revenir en cycles.
+    The model predicts RUL divided by cap: multiply back by cap to get cycles.
     """
     model.eval()
     preds = torch.cat([model(X[i : i + batch_size]) for i in range(0, len(X), batch_size)]) * cap
@@ -59,12 +59,12 @@ def train(
     hidden_size: int = 64,
     num_layers: int = 2,
 ) -> float:
-    """Entraîne le LSTM et sauvegarde le meilleur modèle (RMSE validation). Renvoie cette RMSE."""
+    """Train the LSTM and save the best model (validation RMSE). Returns that RMSE."""
     torch.manual_seed(SEED)
 
-    # 1. Données : RUL plafonnée, découpage PAR MOTEUR, puis normalisation et fenêtres.
-    #    Le scaler est appris sur les 80 moteurs d'entraînement seulement : la validation
-    #    joue le rôle de données jamais vues, comme le test plus tard.
+    # 1. Data: capped RUL, split BY ENGINE, then normalization and windowing.
+    #    The scaler is fitted on the 80 training engines only: the validation set
+    #    plays the role of unseen data, like the test set later on.
     full = add_rul(load_cmapss("FD001", "train"), cap=cap)
     train_df, val_df = split_units(full)
     train_df, val_df, scaler = normalize(train_df, val_df)
@@ -72,16 +72,16 @@ def train(
     X_train, y_train = map(torch.from_numpy, make_windows(train_df, window_size))
     X_val, y_val = map(torch.from_numpy, make_windows(val_df, window_size))
     print(
-        f"Moteurs : {train_df['unit_number'].nunique()} entraînement / "
+        f"Engines: {train_df['unit_number'].nunique()} training / "
         f"{val_df['unit_number'].nunique()} validation"
     )
-    print(f"Fenêtres : X_train {tuple(X_train.shape)} | X_val {tuple(X_val.shape)}\n")
+    print(f"Windows: X_train {tuple(X_train.shape)} | X_val {tuple(X_val.shape)}\n")
 
-    # Le réseau apprend la RUL divisée par cap (entre 0 et 1) : sans cela, la sortie part
-    # de ~0 et doit monter jusqu'à ~125, ce qui ralentit énormément l'apprentissage.
+    # The network learns RUL divided by cap (between 0 and 1): otherwise its output starts
+    # near 0 and has to climb to ~125, which slows learning down dramatically.
     loader = DataLoader(TensorDataset(X_train, y_train / cap), batch_size=batch_size, shuffle=True)
 
-    # 2. Modèle, perte, optimiseur
+    # 2. Model, loss, optimizer
     model = LSTMRegressor(len(USEFUL_SENSORS), hidden_size, num_layers)
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -90,7 +90,7 @@ def train(
     ckpt_path = MODELS_DIR / "lstm_fd001.pt"
     best_val = float("inf")
 
-    # 3. Boucle d'entraînement
+    # 3. Training loop
     print(f"{'epoch':>5} | {'RMSE train':>10} | {'RMSE val':>8}")
     for epoch in range(1, epochs + 1):
         model.train()
@@ -100,11 +100,11 @@ def train(
             loss.backward()
             optimizer.step()
 
-        # RMSE recalculée sur tout le jeu en fin d'epoch (plus juste qu'une moyenne des batchs)
+        # RMSE recomputed on the full set at the end of each epoch (more accurate than a batch average)
         train_rmse = rmse(model, X_train, y_train, cap)
         val_rmse = rmse(model, X_val, y_val, cap)
 
-        # On ne garde que le meilleur modèle selon la validation
+        # Keep only the best model according to validation
         marker = ""
         if val_rmse < best_val:
             best_val = val_rmse
@@ -116,7 +116,7 @@ def train(
                         "hidden_size": hidden_size,
                         "num_layers": num_layers,
                         "window_size": window_size,
-                        "cap": cap,  # sortie du modèle × cap = RUL en cycles
+                        "cap": cap,  # model output × cap = RUL in cycles
                         "sensors": USEFUL_SENSORS,
                     },
                     "epoch": epoch,
@@ -124,12 +124,12 @@ def train(
                 },
                 ckpt_path,
             )
-            marker = "  <- meilleur, sauvegardé"
+            marker = "  <- best, saved"
         print(f"{epoch:>5} | {train_rmse:>10.2f} | {val_rmse:>8.2f}{marker}")
 
-    # Le scaler est sauvegardé à côté : il faudra le même pour normaliser le test
+    # The scaler is saved alongside: the same one is needed to normalize the test set
     joblib.dump(scaler, MODELS_DIR / "scaler_fd001.joblib")
-    print(f"\nMeilleure RMSE validation : {best_val:.2f} -> {ckpt_path.name}")
+    print(f"\nBest validation RMSE: {best_val:.2f} -> {ckpt_path.name}")
     return best_val
 
 

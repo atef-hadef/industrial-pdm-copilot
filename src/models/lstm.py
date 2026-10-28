@@ -1,21 +1,21 @@
-"""Modèle LSTM de prédiction de RUL."""
+"""LSTM model for RUL prediction."""
 
 import torch
 from torch import nn
 
 
 class LSTMRegressor(nn.Module):
-    """LSTM qui lit une fenêtre de capteurs et prédit la RUL au dernier cycle.
+    """LSTM that reads a window of sensor readings and predicts the RUL at its last cycle.
 
-    Entrée : (batch, window_size, n_features) - Sortie : (batch,)
+    Input: (batch, window_size, n_features) - Output: (batch,)
     """
 
     def __init__(
         self, n_features: int = 14, hidden_size: int = 64, num_layers: int = 2, dropout: float = 0.2
     ):
         super().__init__()
-        # batch_first=True : les tenseurs sont (batch, temps, capteurs), comme nos fenêtres
-        # Le dropout s'applique entre les couches LSTM (inactif s'il n'y a qu'une couche)
+        # batch_first=True: tensors are (batch, time, sensors), like our windows
+        # Dropout is applied between LSTM layers (inactive with a single layer)
         self.lstm = nn.LSTM(
             input_size=n_features,
             hidden_size=hidden_size,
@@ -23,11 +23,11 @@ class LSTMRegressor(nn.Module):
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0.0,
         )
-        # Tête de régression : état caché final -> 1 valeur de RUL
+        # Regression head: final hidden state -> 1 RUL value
         self.head = nn.Linear(hidden_size, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out, _ = self.lstm(x)
-        # On ne garde que la sortie du dernier pas de temps : elle résume toute la fenêtre
+        # Keep only the output of the last time step: it summarizes the whole window
         last = out[:, -1, :]
         return self.head(last).squeeze(-1)

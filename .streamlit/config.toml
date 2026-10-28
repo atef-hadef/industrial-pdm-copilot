@@ -1,4 +1,4 @@
-# Thème sombre "salle de contrôle" pour les widgets natifs de Streamlit
+# "Control room" dark theme for Streamlit's native widgets
 [theme]
 base = "dark"
 primaryColor = "#2DD4BF"

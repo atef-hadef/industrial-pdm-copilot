@@ -1,12 +1,12 @@
-"""Dashboard Streamlit "salle de contrôle" : RUL prédite de la flotte de moteurs (test FD001).
+"""Streamlit "control room" dashboard: predicted RUL of the engine fleet (FD001 test set).
 
-Usage : streamlit run src/dashboard/app.py
+Usage: streamlit run src/dashboard/app.py
 """
 
 import sys
 from pathlib import Path
 
-# streamlit run n'ajoute pas la racine du projet au chemin d'import : on le fait pour `src.*`
+# streamlit run does not add the project root to the import path: add it for `src.*`
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -19,7 +19,7 @@ from plotly.subplots import make_subplots
 from src.data.load import load_cmapss, load_rul
 from src.models.predict import load_model, predict_rul
 
-# --- Charte graphique --------------------------------------------------------------
+# --- Visual identity ---------------------------------------------------------------
 BG = "#0E1117"
 CARD = "#1A1F2E"
 BORDER = "#2A3142"
@@ -27,11 +27,11 @@ TEXT = "#E5E7EB"
 MUTED = "#9CA3AF"
 ACCENT = "#2DD4BF"
 
-# Seuils de risque (en cycles restants) et couleurs associées, utilisés partout
+# Risk thresholds (in remaining cycles) and their colors, used everywhere
 CRITICAL_RUL, ALERT_RUL = 30, 60
 STATUS_COLORS = {"Critical": "#EF4444", "Warning": "#F59E0B", "Healthy": "#10B981"}
 
-# Capteurs affichés dans la vue moteur (nom C-MAPSS + grandeur physique)
+# Sensors shown in the engine view (C-MAPSS name + physical quantity)
 SENSOR_LABELS = {
     "sensor_2": "T24 · LPC outlet temp. (°R)",
     "sensor_4": "T50 · LPT outlet temp. (°R)",
@@ -45,24 +45,24 @@ CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Espacement unique, partagé par toutes les cartes (entre elles et à l'intérieur) */
+/* Single spacing scale, shared by all cards (between and inside them) */
 :root {{ --gap: 1.25rem; --pad: 1.25rem 1.4rem; --radius: 14px; }}
 
 html, body, [class*="css"], .stApp {{ font-family: 'Inter', sans-serif; }}
 .stApp {{ background: {BG}; }}
 .block-container {{ padding-top: 2rem; padding-bottom: 3rem; max-width: 1500px; }}
 
-/* Zone principale (st.container key="page") : même écart vertical et horizontal partout */
+/* Main area (st.container key="page"): same vertical and horizontal gap everywhere */
 .st-key-page {{ gap: var(--gap); }}
 .st-key-page [data-testid="stHorizontalBlock"] {{ gap: var(--gap) !important; }}
-/* Streamlit met une marge de -16px sous chaque bloc Markdown : on l'annule pour garder --gap partout */
+/* Streamlit adds a -16px margin under each Markdown block: cancel it to keep --gap everywhere */
 .st-key-page [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
-/* À l'intérieur d'une carte : écart plus serré entre le titre et le graphique */
+/* Inside a card: tighter gap between the title and the chart */
 div[class*="st-key-card"] {{ gap: 0.75rem; }}
 #MainMenu, footer {{ visibility: hidden; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 
-/* Barre latérale */
+/* Sidebar */
 section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid {BORDER}; }}
 .brand {{ padding: 0.4rem 0 1.2rem 0; border-bottom: 1px solid {BORDER}; margin-bottom: 1.2rem; }}
 .brand-title {{ font-size: 1.25rem; font-weight: 700; color: {TEXT}; letter-spacing: -0.01em; }}
@@ -73,7 +73,7 @@ section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid
 .side-row {{ display: flex; justify-content: space-between; font-size: 0.85rem; color: {TEXT}; padding: 0.2rem 0; }}
 .side-row span:first-child {{ color: {MUTED}; }}
 
-/* Barre d'en-tête : titre à gauche, pastille d'état de la flotte à droite */
+/* Header bar: title on the left, fleet status pill on the right */
 .topbar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;
            background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius); padding: 0.9rem 1.4rem;
            box-shadow: 0 4px 18px rgba(0,0,0,0.25); }}
@@ -88,13 +88,13 @@ section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid
 .status-pill .dot {{ width: 8px; height: 8px; border-radius: 50%; background: var(--c); }}
 .status-pill .sep {{ color: {BORDER}; }}
 
-/* Titres de page et de section */
+/* Page and section titles */
 .page-title {{ font-size: 1.45rem; line-height: 1.2; font-weight: 700; color: {TEXT}; letter-spacing: -0.02em; margin: 0; }}
 .page-sub {{ color: {MUTED}; font-size: 0.9rem; margin: 0.3rem 0 0 0; }}
 .section-title {{ font-size: 1.02rem; font-weight: 600; color: {TEXT}; margin: 0 0 0.2rem 0; }}
 .section-sub {{ font-size: 0.82rem; color: {MUTED}; margin: 0; }}
 
-/* Cartes KPI */
+/* KPI cards */
 .kpi {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius); padding: var(--pad);
         box-shadow: 0 4px 18px rgba(0,0,0,0.25); position: relative; overflow: hidden; }}
 .kpi::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }}
@@ -104,17 +104,17 @@ section[data-testid="stSidebar"] {{ background: #121725; border-right: 1px solid
 .kpi-value small {{ font-size: 0.95rem; font-weight: 500; color: {MUTED}; margin-left: 0.25rem; }}
 .kpi-hint {{ font-size: 0.78rem; color: {MUTED}; margin-top: 0.35rem; }}
 
-/* Conteneurs "carte" autour des graphiques (st.container avec une clé card_*) */
+/* "Card" containers around charts (st.container with a card_* key) */
 div[class*="st-key-card"] {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: var(--radius);
                              padding: var(--pad); box-shadow: 0 4px 18px rgba(0,0,0,0.25); }}
 
-/* Badges de statut */
+/* Status badges */
 .badge {{ display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0.65rem; border-radius: 999px;
           font-size: 0.78rem; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
           border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }}
 .badge::before {{ content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }}
 
-/* Tableau de flotte */
+/* Fleet table */
 .table-wrap {{ max-height: 460px; overflow-y: auto; border-radius: 10px; border: 1px solid {BORDER}; }}
 table.fleet {{ width: 100%; border-collapse: collapse; font-size: 0.88rem; color: {TEXT}; }}
 table.fleet th {{ position: sticky; top: 0; background: #151A27; color: {MUTED}; font-weight: 600; font-size: 0.72rem;
@@ -126,7 +126,7 @@ table.fleet tr:hover td {{ background: #20273A; }}
 .rulbar-track {{ flex: 1; max-width: 140px; height: 6px; border-radius: 3px; background: #2A3142; overflow: hidden; }}
 .rulbar-fill {{ height: 100%; border-radius: 3px; background: var(--c); }}
 
-/* Infos moteur */
+/* Engine details */
 .gauge-value {{ text-align: center; font-size: 1.6rem; font-weight: 600; color: {TEXT}; margin-top: -0.4rem;
                 font-variant-numeric: tabular-nums; }}
 .gauge-value span {{ font-size: 0.95rem; font-weight: 500; color: {MUTED}; margin-left: 0.2rem; }}
@@ -138,9 +138,9 @@ table.fleet tr:hover td {{ background: #20273A; }}
 """
 
 
-# --- Données et modèle -------------------------------------------------------------
+# --- Data and model ----------------------------------------------------------------
 def risk_status(rul: float) -> str:
-    """Statut de risque à partir de la RUL prédite (seuils exclusifs)."""
+    """Risk status from the predicted RUL (exclusive thresholds)."""
     if rul < CRITICAL_RUL:
         return "Critical"
     if rul < ALERT_RUL:
@@ -150,13 +150,13 @@ def risk_status(rul: float) -> str:
 
 @st.cache_resource
 def get_model():
-    """Charge le LSTM + scaler une seule fois pour toute la session (cache Streamlit)."""
+    """Load the LSTM + scaler once for the whole session (Streamlit cache)."""
     return load_model()
 
 
 @st.cache_data
 def get_fleet() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Capteurs bruts du test FD001 + tableau de flotte (RUL prédite, statut, RUL réelle)."""
+    """Raw FD001 test sensors + fleet table (predicted RUL, status, true RUL)."""
     model, scaler, cfg = get_model()
     test = load_cmapss("FD001", "test")
     pred = predict_rul(test, model, scaler, cfg)
@@ -165,15 +165,15 @@ def get_fleet() -> tuple[pd.DataFrame, pd.DataFrame]:
         "unit": pred.index,
         "rul_pred": pred.to_numpy(),
         "cycles": test.groupby("unit_number")["time_in_cycles"].max().loc[pred.index].to_numpy(),
-        # Vraie RUL (plafonnée comme à l'entraînement) : référence, inconnue en conditions réelles
+        # True RUL (capped as in training): a reference, unknown in real operation
         "rul_true": load_rul("FD001").loc[pred.index].clip(upper=cfg["cap"]).to_numpy(),
     })
     fleet["status"] = fleet["rul_pred"].map(risk_status)
     return test, fleet.sort_values("rul_pred").reset_index(drop=True)
 
 
-# --- Composants HTML ---------------------------------------------------------------
-# Le HTML est écrit sur une ligne : en Markdown, une ligne indentée deviendrait un bloc de code.
+# --- HTML components ---------------------------------------------------------------
+# HTML is written on a single line: in Markdown, an indented line would become a code block.
 def badge(status: str) -> str:
     return f'<span class="badge" style="--c:{STATUS_COLORS[status]}">{status}</span>'
 
@@ -191,7 +191,7 @@ def section(title: str, subtitle: str) -> None:
 
 
 def style_fig(fig: go.Figure, height: int, top: int = 10) -> go.Figure:
-    """Habillage Plotly commun : fond transparent (la carte fait le fond), grille discrète."""
+    """Shared Plotly styling: transparent background (the card provides it), subtle grid."""
     fig.update_layout(
         height=height,
         margin=dict(l=10, r=10, t=top, b=10),
@@ -205,16 +205,16 @@ def style_fig(fig: go.Figure, height: int, top: int = 10) -> go.Figure:
     return fig
 
 
-# --- Vues ----------------------------------------------------------------------------
+# --- Views ---------------------------------------------------------------------------
 def render_topbar(fleet: pd.DataFrame) -> None:
-    """Barre d'en-tête : titre à gauche, pastille d'état de la flotte à droite."""
+    """Header bar: title on the left, fleet status pill on the right."""
     counts = fleet["status"].value_counts()
     items = [
         ("#64748B", f"{len(fleet)} engines"),
         (STATUS_COLORS["Critical"], f"{counts.get('Critical', 0)} critical"),
         (STATUS_COLORS["Warning"], f"{counts.get('Warning', 0)} warning"),
     ]
-    # Le point coloré porte le statut, le texte reste dans la couleur du texte (lisibilité)
+    # The colored dot carries the status; the label stays in the text color (readability)
     pill = '<span class="sep">·</span>'.join(
         f'<span class="item"><span class="dot" style="--c:{c}"></span>{label}</span>' for c, label in items
     )
@@ -239,7 +239,7 @@ def render_kpis(fleet: pd.DataFrame) -> None:
 
 
 def render_fleet(fleet: pd.DataFrame) -> None:
-    # Graphique : une barre par moteur, triée par RUL croissante, couleur = statut
+    # Chart: one bar per engine, sorted by increasing RUL, color = status
     with st.container(key="card_fleet_chart"):
         section("Predicted RUL per engine", "Sorted from most urgent to healthiest · hover over a bar for details")
         fig = go.Figure(go.Bar(
@@ -250,18 +250,18 @@ def render_fleet(fleet: pd.DataFrame) -> None:
             hovertemplate="<b>Engine %{x}</b><br>Predicted RUL: %{y:.0f} cycles"
                           "<br>Status: %{customdata[0]}<br>Observed cycles: %{customdata[1]}<extra></extra>",
         ))
-        # Lignes de seuil
+        # Threshold lines
         for y, status in ((CRITICAL_RUL, "Critical"), (ALERT_RUL, "Warning")):
             fig.add_hline(y=y, line=dict(color=STATUS_COLORS[status], width=1, dash="dot"),
                           annotation_text=f"{status.lower()} threshold · {y}", annotation_position="top left",
                           annotation_font=dict(color=STATUS_COLORS[status], size=11))
         fig.update_layout(bargap=0.25, barcornerradius=3, showlegend=False)
-        # Axe forcé en catégories : sinon Plotly lit "#081" comme le nombre 81 et perd le tri par RUL
+        # Force a categorical axis: otherwise Plotly parses "#081" as the number 81 and loses the RUL ordering
         fig.update_xaxes(type="category", showgrid=False, showticklabels=False, title=None)
         fig.update_yaxes(title=dict(text="Predicted RUL (cycles)", font=dict(color=MUTED)), range=[0, 130])
         st.plotly_chart(style_fig(fig, 360), use_container_width=True, config={"displayModeBar": False})
 
-    # Tableau : trié par risque (RUL croissante), badge de statut et mini-barre de RUL
+    # Table: sorted by risk (increasing RUL), status badge and mini RUL bar
     with st.container(key="card_fleet_table"):
         section("Fleet registry", "Ranked by risk · true RUL shown as a reference to assess the model")
         rows = []
@@ -283,7 +283,7 @@ def render_fleet(fleet: pd.DataFrame) -> None:
 
 
 def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
-    # Sélecteur : moteurs classés par urgence, le plus critique par défaut
+    # Selector: engines ranked by urgency, most critical selected by default
     by_unit = fleet.set_index("unit")
     unit = st.selectbox(
         "Engine",
@@ -297,11 +297,11 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
     with left, st.container(key="card_gauge"):
         section("Predicted RUL", "Last 30-cycle window")
         gauge = go.Figure(go.Indicator(
-            # La valeur est affichée en HTML sous la jauge (Plotly la superpose à l'arc)
+            # The value is rendered in HTML below the gauge (Plotly would overlap it with the arc)
             mode="gauge",
             value=row["rul_pred"],
             gauge=dict(
-                # Échelle 0 -> 125 (plafond de RUL), graduée sur les seuils de risque
+                # Scale 0 -> 125 (RUL cap), with ticks on the risk thresholds
                 axis=dict(range=[0, 125], tickvals=[0, CRITICAL_RUL, ALERT_RUL, 90, 125],
                           tickwidth=1, tickcolor=BORDER, tickfont=dict(color=MUTED)),
                 bar=dict(color=TEXT, thickness=0.22),
@@ -315,7 +315,7 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
             ),
         ))
         style_fig(gauge, 210, top=20)
-        # Marges latérales plus larges : sinon les graduations 0 et 125 sont coupées
+        # Wider side margins: otherwise the 0 and 125 tick labels are clipped
         gauge.update_layout(margin=dict(l=30, r=30, b=0))
         st.plotly_chart(gauge, use_container_width=True, config={"displayModeBar": False})
         st.markdown(
@@ -342,7 +342,7 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
                 x=d["time_in_cycles"], y=d[sensor], mode="lines", line=dict(color=ACCENT, width=1.8),
                 name=SENSOR_LABELS[sensor], hovertemplate="Cycle %{x}<br>%{y:.2f}<extra></extra>",
             ), row=r, col=c)
-            # Fenêtre des 30 derniers cycles, celle qui alimente le LSTM
+            # Window of the last 30 cycles, the one fed to the LSTM
             fig.add_vrect(x0=max(last_cycle - 29, 1), x1=last_cycle, fillcolor="#FFFFFF", opacity=0.06,
                           line_width=0, row=r, col=c)
         fig.update_annotations(font=dict(size=12, color=MUTED))
@@ -387,7 +387,7 @@ def main() -> None:
         "Fleet View": "Fleet health overview · RUL predicted by the LSTM from each engine's last window",
         "Engine View": "Single-engine diagnosis · predicted RUL and sensor trends",
     }
-    # Tout le contenu principal dans un seul conteneur : l'écart entre cartes y est fixé par --gap
+    # All main content lives in one container: the gap between cards is set by --gap
     with st.container(key="page"):
         render_topbar(fleet)
         st.markdown(f'<div class="page-title">{view}</div><div class="page-sub">{subtitles[view]}</div>',

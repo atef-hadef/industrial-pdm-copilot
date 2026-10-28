@@ -8,18 +8,18 @@ __pycache__/
 build/
 dist/
 
-# --- Environnements virtuels ---
+# --- Virtual environments ---
 venv/
 .venv/
 env/
 .env
 
-# --- Données (C-MAPSS brut + traité, non versionnées) ---
+# --- Data (raw + processed C-MAPSS, not versioned) ---
 data/raw/
 data/processed/*
 !data/processed/.gitkeep
 
-# --- Modèles, checkpoints & artefacts ---
+# --- Models, checkpoints & artifacts ---
 models/*
 !models/.gitkeep
 *.pt
@@ -37,7 +37,7 @@ reports/
 # --- Jupyter ---
 .ipynb_checkpoints/
 
-# --- Tests / outils ---
+# --- Tests / tooling ---
 .pytest_cache/
 .coverage
 htmlcov/
@@ -50,5 +50,5 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# --- Documents de travail internes (hors repo) ---
+# --- Internal working documents (kept out of the repo) ---
 Industrial-PdM-Copilot_SPEC.md

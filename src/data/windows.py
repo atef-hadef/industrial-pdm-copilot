@@ -1,6 +1,6 @@
-"""Fenêtres glissantes pour les modèles séquentiels (LSTM, CNN...).
+"""Sliding windows for sequence models (LSTM, CNN...).
 
-Usage : python -m src.data.windows
+Usage: python -m src.data.windows
 """
 
 import numpy as np
@@ -15,31 +15,31 @@ from src.data.preprocess import USEFUL_SENSORS, normalize
 def make_windows(
     df: pd.DataFrame, window_size: int = 30, features: list[str] = USEFUL_SENSORS
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Découpe chaque moteur en fenêtres glissantes de `window_size` cycles (pas de 1).
+    """Split each engine into sliding windows of `window_size` cycles (stride 1).
 
-    Renvoie :
-    - X de forme (n_fenetres, window_size, n_features) ;
-    - y de forme (n_fenetres,) = la RUL au DERNIER cycle de chaque fenêtre.
+    Returns:
+    - X of shape (n_windows, window_size, n_features);
+    - y of shape (n_windows,) = the RUL at the LAST cycle of each window.
 
-    Les fenêtres ne mélangent jamais deux moteurs : le découpage est fait moteur par moteur.
-    Un moteur avec moins de `window_size` cycles ne produit aucune fenêtre.
+    Windows never mix two engines: the split is done engine by engine.
+    An engine with fewer than `window_size` cycles produces no window.
     """
     if "RUL" not in df:
-        raise ValueError("df doit contenir une colonne 'RUL' (voir add_rul)")
+        raise ValueError("df must contain a 'RUL' column (see add_rul)")
 
     X_parts, y_parts = [], []
     for _, unit in df.groupby("unit_number"):
-        # Cycles dans l'ordre chronologique
+        # Cycles in chronological order
         unit = unit.sort_values("time_in_cycles")
         values = unit[features].to_numpy(dtype=np.float32)
         if len(values) < window_size:
             continue
 
-        # sliding_window_view donne (n_fenetres, n_features, window_size) :
-        # on remet l'axe du temps avant celui des capteurs -> (n_fenetres, window_size, n_features)
+        # sliding_window_view returns (n_windows, n_features, window_size):
+        # move the time axis before the sensor axis -> (n_windows, window_size, n_features)
         X_parts.append(sliding_window_view(values, window_size, axis=0).transpose(0, 2, 1))
 
-        # Fenêtre i = cycles [i, i + window_size - 1] -> cible = RUL du dernier cycle
+        # Window i = cycles [i, i + window_size - 1] -> target = RUL of the last cycle
         y_parts.append(unit["RUL"].to_numpy(dtype=np.float32)[window_size - 1 :])
 
     return np.concatenate(X_parts), np.concatenate(y_parts)
@@ -48,32 +48,32 @@ def make_windows(
 def last_windows(
     df: pd.DataFrame, window_size: int = 30, features: list[str] = USEFUL_SENSORS
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Renvoie la DERNIÈRE fenêtre de chaque moteur (cas du jeu test, tronqué avant la panne).
+    """Return the LAST window of each engine (test set case, truncated before failure).
 
-    Renvoie :
-    - X de forme (n_moteurs, window_size, n_features) ;
-    - les numéros de moteurs correspondants, dans le même ordre.
+    Returns:
+    - X of shape (n_engines, window_size, n_features);
+    - the matching engine numbers, in the same order.
     """
     X_parts, units = [], []
     for unit_number, unit in df.groupby("unit_number"):
         values = unit.sort_values("time_in_cycles")[features].to_numpy(dtype=np.float32)
         if len(values) < window_size:
-            raise ValueError(f"moteur {unit_number} : {len(values)} cycles < window_size={window_size}")
-        # Les window_size derniers cycles observés
+            raise ValueError(f"engine {unit_number}: {len(values)} cycles < window_size={window_size}")
+        # The last window_size observed cycles
         X_parts.append(values[-window_size:])
         units.append(unit_number)
     return np.stack(X_parts), np.array(units)
 
 
 if __name__ == "__main__":
-    # Pipeline FD001 : chargement -> RUL plafonnée -> normalisation -> fenêtres
+    # FD001 pipeline: loading -> capped RUL -> normalization -> windows
     train = add_rul(load_cmapss("FD001", "train"), cap=125)
     test = load_cmapss("FD001", "test")
     train, test, _ = normalize(train, test)
 
     X, y = make_windows(train, window_size=30)
-    print(f"X train : {X.shape}  (n_fenetres, window_size, n_capteurs)")
-    print(f"y train : {y.shape}")
-    print(f"Capteurs train dans [{train[USEFUL_SENSORS].min().min():.2f}, "
-          f"{train[USEFUL_SENSORS].max().max():.2f}] | test dans "
+    print(f"X train: {X.shape}  (n_windows, window_size, n_sensors)")
+    print(f"y train: {y.shape}")
+    print(f"Train sensors in [{train[USEFUL_SENSORS].min().min():.2f}, "
+          f"{train[USEFUL_SENSORS].max().max():.2f}] | test in "
           f"[{test[USEFUL_SENSORS].min().min():.2f}, {test[USEFUL_SENSORS].max().max():.2f}]")

@@ -1,6 +1,6 @@
-"""Chargement des fichiers bruts NASA C-MAPSS.
+"""Loading of the raw NASA C-MAPSS files.
 
-Usage : python -m src.data.load
+Usage: python -m src.data.load
 """
 
 from pathlib import Path
@@ -20,20 +20,20 @@ COLUMNS = ID_COLUMNS + SETTING_COLUMNS + SENSOR_COLUMNS
 
 def _check_subset(subset: str) -> None:
     if subset not in SUBSETS:
-        raise ValueError(f"subset inconnu : {subset!r} (attendu : {SUBSETS})")
+        raise ValueError(f"unknown subset: {subset!r} (expected one of {SUBSETS})")
 
 
 def load_cmapss(
     subset: str = "FD001", split: str = "train", raw_dir: Path = RAW_DIR
 ) -> pd.DataFrame:
-    """Lit train_<subset>.txt ou test_<subset>.txt et renvoie un DataFrame propre.
+    """Read train_<subset>.txt or test_<subset>.txt and return a clean DataFrame.
 
-    Les fichiers n'ont pas d'en-tête et finissent par des espaces en trop,
-    qui produisent des colonnes vides : on les supprime avant de nommer les 26 colonnes.
+    The files have no header and end with trailing spaces, which produce empty
+    columns: those are dropped before the 26 columns are named.
     """
     _check_subset(subset)
     if split not in SPLITS:
-        raise ValueError(f"split inconnu : {split!r} (attendu : {SPLITS})")
+        raise ValueError(f"unknown split: {split!r} (expected one of {SPLITS})")
 
     path = Path(raw_dir) / f"{split}_{subset}.txt"
     df = pd.read_csv(path, sep=r"\s+", header=None)
@@ -41,7 +41,7 @@ def load_cmapss(
 
     if df.shape[1] != len(COLUMNS):
         raise ValueError(
-            f"{path.name} : {df.shape[1]} colonnes lues, {len(COLUMNS)} attendues"
+            f"{path.name}: read {df.shape[1]} columns, expected {len(COLUMNS)}"
         )
     df.columns = COLUMNS
     df[ID_COLUMNS] = df[ID_COLUMNS].astype(int)
@@ -49,7 +49,7 @@ def load_cmapss(
 
 
 def load_rul(subset: str = "FD001", raw_dir: Path = RAW_DIR) -> pd.Series:
-    """Lit RUL_<subset>.txt : la RUL réelle de chaque moteur du jeu de test, en fin de série."""
+    """Read RUL_<subset>.txt: the true RUL of each test engine at the end of its series."""
     _check_subset(subset)
     path = Path(raw_dir) / f"RUL_{subset}.txt"
     rul = pd.read_csv(path, sep=r"\s+", header=None).dropna(axis=1, how="all")
@@ -64,10 +64,10 @@ def main(subset: str = "FD001") -> None:
     rul = load_rul(subset)
 
     print(f"=== C-MAPSS {subset} ===")
-    print(f"train : {train.shape}  ({train['unit_number'].nunique()} moteurs)")
-    print(f"test  : {test.shape}  ({test['unit_number'].nunique()} moteurs)")
-    print(f"RUL   : {rul.shape}")
-    print("\nAperçu train :")
+    print(f"train: {train.shape}  ({train['unit_number'].nunique()} engines)")
+    print(f"test:  {test.shape}  ({test['unit_number'].nunique()} engines)")
+    print(f"RUL:   {rul.shape}")
+    print("\nTrain preview:")
     print(train.head())
 
 

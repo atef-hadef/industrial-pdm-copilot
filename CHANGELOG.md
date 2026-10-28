@@ -1,82 +1,88 @@
 # Changelog
 
-Toutes les évolutions notables du projet sont consignées ici.
+All notable changes to this project are documented here.
 
-## Non publié
+## Unreleased
 
-### Ajouté
-- `src/data/labeling.py` : `add_rul(df, cap=125)` calcule la RUL du jeu train (cycle max du moteur − cycle courant), plafonnée à `cap` (RUL piecewise-linear) ; `cap=None` donne la RUL linéaire brute. Vérification via `python -m src.data.labeling`.
-- `src/data/preprocess.py` : `normalize(train, test)` garde les 14 capteurs utiles (`USEFUL_SENSORS`) et applique un min-max [0, 1] appris sur le train seulement, puis réappliqué au test (pas de fuite de données).
-- `src/data/windows.py` : `make_windows(df, window_size=30)` crée des fenêtres glissantes par moteur, X `(n_fenetres, 30, 14)` et y = RUL au dernier cycle de la fenêtre. Vérification via `python -m src.data.windows`.
-- `src/models/lstm.py` : `LSTMRegressor`, un LSTM 2 couches (hidden 64, dropout 0,2) suivi d'une couche linéaire, qui prédit la RUL au dernier cycle de la fenêtre.
-- `src/models/train.py` : entraînement du LSTM sur FD001 (`python -m src.models.train`).
-  - Découpage train/validation **par moteur** (80/20, seed 42), fait avant la normalisation et les fenêtres.
-  - MSE, Adam (lr 1e-3), 20 epochs, batch 256, avec la RMSE train/validation affichée à chaque epoch.
-  - La cible est divisée par le plafond pendant l'entraînement : avec la RUL brute (0–125), la RMSE validation n'était encore qu'à 47 après 20 epochs.
-  - Le meilleur modèle (selon la validation) est sauvegardé dans `models/lstm_fd001.pt`, avec le scaler dans `models/scaler_fd001.joblib`.
-- `src/data/windows.py` : `last_windows(df, window_size=30)` renvoie la dernière fenêtre de chaque moteur (cas du jeu test).
-- `src/models/evaluate.py` : évaluation sur le test FD001 (`python -m src.models.evaluate`).
-  - Le test est normalisé avec le scaler sauvegardé, sans nouveau fit.
-  - Le modèle prédit la RUL à partir de la dernière fenêtre de chaque moteur ; la prédiction est remise en cycles (× 125) puis bornée dans [0, 125].
-  - Les vraies RUL sont plafonnées à 125.
-  - Calcul de la RMSE et du score NASA (asymétrique, pénalise davantage les prédictions tardives).
-  - Graphique prédit vs vrai enregistré dans `reports/eval_fd001.png`.
-- `src/models/predict.py` : `load_model()` et `predict_rul()`, partagés par l'évaluation et le dashboard, avec le même calcul (dernière fenêtre, × cap, borné dans [0, 125]).
-- `src/dashboard/app.py` : dashboard Streamlit « salle de contrôle » (`streamlit run src/dashboard/app.py`).
-  - Thème sombre (CSS personnalisé + `.streamlit/config.toml`) et barre latérale de navigation.
-  - 4 cartes KPI : critiques (RUL < 30), alerte (30 à 60), RUL moyenne, total de moteurs.
-  - Vue Flotte : barres Plotly colorées par risque, avec les seuils, et registre trié par risque avec badges de statut.
-  - Vue Moteur : jauge Plotly à zones rouge/orange/vert, et courbes de 6 capteurs où la fenêtre de 30 cycles utilisée par le modèle est grisée.
-  - Le modèle est mis en cache (`@st.cache_resource`), ainsi que les prédictions de la flotte (`@st.cache_data`).
-- `requirements.txt` : ajout de `plotly` et `streamlit`.
+### Added
+- `src/data/labeling.py`: `add_rul(df, cap=125)` computes the RUL of the train set (engine's max cycle − current cycle), capped at `cap` (piecewise-linear RUL); `cap=None` gives the raw linear RUL. Check with `python -m src.data.labeling`.
+- `src/data/preprocess.py`: `normalize(train, test)` keeps the 14 informative sensors (`USEFUL_SENSORS`) and applies a [0, 1] min-max scaling fitted on the train set only, then re-applied to the test set (no data leakage).
+- `src/data/windows.py`: `make_windows(df, window_size=30)` builds per-engine sliding windows, X `(n_windows, 30, 14)` and y = RUL at the last cycle of the window. Check with `python -m src.data.windows`.
+- `src/models/lstm.py`: `LSTMRegressor`, a 2-layer LSTM (hidden 64, dropout 0.2) followed by a linear layer, which predicts the RUL at the last cycle of the window.
+- `src/models/train.py`: LSTM training on FD001 (`python -m src.models.train`).
+  - Train/validation split **by engine** (80/20, seed 42), done before normalization and windowing.
+  - MSE, Adam (lr 1e-3), 20 epochs, batch size 256, with train/validation RMSE printed at each epoch.
+  - The target is divided by the cap during training: with the raw RUL (0–125), validation RMSE was still at 47 after 20 epochs.
+  - The best model (according to validation) is saved to `models/lstm_fd001.pt`, with the scaler in `models/scaler_fd001.joblib`.
+- `src/data/windows.py`: `last_windows(df, window_size=30)` returns the last window of each engine (test set case).
+- `src/models/evaluate.py`: evaluation on the FD001 test set (`python -m src.models.evaluate`).
+  - The test set is normalized with the saved scaler, with no new fit.
+  - The model predicts the RUL from each engine's last window; the prediction is converted back to cycles (× 125) and clipped to [0, 125].
+  - True RULs are capped at 125.
+  - RMSE and NASA score (asymmetric, penalizes late predictions more).
+  - Predicted-vs-true plot saved to `reports/eval_fd001.png`.
+- `src/models/predict.py`: `load_model()` and `predict_rul()`, shared by the evaluation and the dashboard, with the same computation (last window, × cap, clipped to [0, 125]).
+- `src/dashboard/app.py`: "control room" Streamlit dashboard (`streamlit run src/dashboard/app.py`).
+  - Dark theme (custom CSS + `.streamlit/config.toml`) and sidebar navigation.
+  - 4 KPI cards: critical (RUL < 30), warning (30 to 60), mean RUL, total engines.
+  - Fleet view: Plotly bars colored by risk, with thresholds, and a registry sorted by risk with status badges.
+  - Engine view: Plotly gauge with red/orange/green zones, and 6 sensor curves where the 30-cycle window used by the model is shaded.
+  - The model is cached (`@st.cache_resource`), as are the fleet predictions (`@st.cache_data`).
+- `requirements.txt`: added `plotly` and `streamlit`.
 
-### Modifié
-- Dashboard, mise en forme :
-  - barre d'en-tête « Supervision prédictive de la flotte », avec une pastille d'état (moteurs · critiques · en alerte) ;
-  - jauge graduée de 0 à 125, avec la valeur affichée sobrement dessous, au format « N /125 cycles » ;
-  - espacements unifiés : 20 px entre toutes les cartes, même padding et même arrondi partout. Les espaceurs manuels sont supprimés, ainsi que la marge négative que Streamlit ajoute sous les blocs Markdown.
-- Préparation du repo public :
-  - `README.md` complet : problème, démo, résultats, architecture, stack, lancement, structure, feuille de route ;
-  - `assets/` : captures du dashboard (vue flotte, vue moteur) ;
-  - cahier des charges retiré du dépôt et de tout l'historique Git (document de travail interne) ;
-  - lien de téléchargement du dataset : « NASA Turbofan Jet Engine Data Set » sur Kaggle.
-- README de niveau produit :
-  - badges et sommaire cliquable ;
-  - GIF animé du dashboard en tête (`assets/dashboard-demo.gif`) ;
-  - diagramme d'architecture Mermaid ;
-  - résultats illustrés par le graphique prédit vs réel (`assets/eval-fd001.png`) ;
-  - section « Décisions d'ingénierie clés » ;
-  - URL de clonage GitHub.
-- `LICENSE` : licence MIT (Atef Ben Hadef).
-- `README.md` traduit en anglais, avec la même structure : badges, GIF, diagramme Mermaid, captures, résultats, « Key Engineering Decisions ».
-- Dashboard traduit en anglais (textes affichés seulement ; design, couleurs et logique inchangés) :
-  - navigation « Fleet View » / « Engine View » ;
-  - statuts Critical / Warning / Healthy ;
-  - KPI, en-tête, jauge, capteurs, « Fleet registry ».
-- Graphique d'évaluation (`evaluate.py`) traduit en anglais.
-- Visuels régénérés en anglais et renommés : `dashboard-fleet.png`, `dashboard-engine.png`, `dashboard-demo.gif`, `eval-fd001.png`.
+### Changed
+- Dashboard layout:
+  - header bar "Predictive fleet monitoring", with a status pill (engines · critical · warning);
+  - gauge scaled from 0 to 125, with the value shown discreetly below it, as "N /125 cycles";
+  - unified spacing: 20 px between all cards, same padding and corner radius everywhere. Manual spacers are removed, as is the negative margin Streamlit adds under Markdown blocks.
+- Public repo preparation:
+  - full `README.md`: problem, demo, results, architecture, stack, getting started, structure, roadmap;
+  - `assets/`: dashboard screenshots (fleet view, engine view);
+  - project specification removed from the repo and from the entire Git history (internal working document);
+  - dataset download link: "NASA Turbofan Jet Engine Data Set" on Kaggle.
+- Product-grade README:
+  - badges and clickable table of contents;
+  - animated dashboard GIF at the top (`assets/dashboard-demo.gif`);
+  - Mermaid architecture diagram;
+  - results illustrated with the predicted-vs-true plot (`assets/eval-fd001.png`);
+  - "Key Engineering Decisions" section;
+  - GitHub clone URL.
+- `LICENSE`: MIT license (Atef Ben Hadef).
+- `README.md` translated into English, with the same structure: badges, GIF, Mermaid diagram, screenshots, results, "Key Engineering Decisions".
+- Dashboard translated into English (displayed text only; design, colors and logic unchanged):
+  - "Fleet View" / "Engine View" navigation;
+  - Critical / Warning / Healthy statuses;
+  - KPIs, header, gauge, sensors, "Fleet registry".
+- Evaluation plot (`evaluate.py`) translated into English.
+- Visuals regenerated in English and renamed: `dashboard-fleet.png`, `dashboard-engine.png`, `dashboard-demo.gif`, `eval-fd001.png`.
+- Repo fully in English:
+  - comments, docstrings, console output and error messages in `src/`;
+  - `notebooks/01_eda.ipynb` (markdown, comments, plot labels; re-executed);
+  - this changelog.
 
-### Corrigé
-- Graphique de la flotte : axe X forcé en catégories. Plotly lisait les libellés `#081` comme des nombres et perdait le tri par RUL.
+  Code logic and results are unchanged.
 
-### Constaté
-- FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
-- FD001 train fenêtré : X `(17731, 30, 14)`, y `(17731,)`. Après normalisation, les capteurs du test sortent légèrement de [0, 1] (de −0,04 à 1,08), ce qui est attendu.
-- Premier LSTM : meilleure RMSE validation **14,23 cycles** (epoch 20, contre 13,00 en train). Elle est calculée sur toutes les fenêtres des 20 moteurs de validation, donc elle n'est pas encore comparable au benchmark test.
-- **Test FD001 (100 moteurs, dernière fenêtre) : RMSE 13,47 cycles, score NASA 318,5.** 56 prédictions sont tardives et 44 précoces ; la plus grosse erreur est −46,2 cycles (moteur 93).
+### Fixed
+- Fleet chart: X axis forced to categorical. Plotly was parsing the `#081` labels as numbers and losing the RUL ordering.
 
-## v0.1 - chargement + EDA (2026-10-28)
+### Observed
+- FD001 train with `cap=125`: 8,131 rows out of 20,631 (39.4%) are at the cap.
+- Windowed FD001 train: X `(17731, 30, 14)`, y `(17731,)`. After normalization, test sensors fall slightly outside [0, 1] (−0.04 to 1.08), which is expected.
+- First LSTM: best validation RMSE **14.23 cycles** (epoch 20, vs. 13.00 on train). It is computed over all windows of the 20 validation engines, so it is not yet comparable to the test benchmark.
+- **FD001 test set (100 engines, last window): RMSE 13.47 cycles, NASA score 318.5.** 56 predictions are late and 44 early; the largest error is −46.2 cycles (engine 93).
 
-### Ajouté
-- `src/data/load.py` : `load_cmapss(subset, split)` lit `train_`/`test_<subset>.txt` (26 colonnes nommées, colonnes vides de fin de ligne supprimées) et `load_rul(subset)` lit la RUL réelle du jeu de test. Exécutable via `python -m src.data.load`.
-- `notebooks/01_eda.ipynb` : EDA de FD001 (100 moteurs, durée de vie 128–362 cycles, trajectoires de 6 capteurs sur 3 moteurs, détection des capteurs non informatifs).
+## v0.1 - loading + EDA (2026-10-28)
 
-### Constaté
-- 7 capteurs à retirer en FD001 : `sensor_1, 5, 6, 10, 16, 18, 19` (constants ou 2 valeurs) ; 14 capteurs informatifs conservés.
+### Added
+- `src/data/load.py`: `load_cmapss(subset, split)` reads `train_`/`test_<subset>.txt` (26 named columns, trailing empty columns dropped) and `load_rul(subset)` reads the true RUL of the test set. Runnable with `python -m src.data.load`.
+- `notebooks/01_eda.ipynb`: FD001 EDA (100 engines, lifetimes of 128–362 cycles, trajectories of 6 sensors on 3 engines, detection of non-informative sensors).
 
-## v0.0 - setup initial (2026-10-28)
+### Observed
+- 7 sensors to drop in FD001: `sensor_1, 5, 6, 10, 16, 18, 19` (constant or 2 values); 14 informative sensors kept.
 
-### Ajouté
-- Arborescence du repo (`src/` et ses sous-packages, `data/processed/`, `notebooks/`, `tests/`, `models/`, `manuals/`).
-- Environnement virtuel Python et `requirements.txt` (numpy, pandas, scikit-learn, matplotlib, jupyter, torch).
-- `.gitignore`, `README.md` squelette, `CHANGELOG.md`.
+## v0.0 - initial setup (2026-10-28)
+
+### Added
+- Repo structure (`src/` and its sub-packages, `data/processed/`, `notebooks/`, `tests/`, `models/`, `manuals/`).
+- Python virtual environment and `requirements.txt` (numpy, pandas, scikit-learn, matplotlib, jupyter, torch).
+- `.gitignore`, skeleton `README.md`, `CHANGELOG.md`.
