@@ -35,6 +35,10 @@ Toutes les évolutions notables du projet sont consignées ici.
   - barre d'en-tête « Supervision prédictive de la flotte », avec une pastille d'état (moteurs · critiques · en alerte) ;
   - jauge graduée de 0 à 125, avec la valeur affichée sobrement dessous, au format « N /125 cycles » ;
   - espacements unifiés : 20 px entre toutes les cartes, même padding et même arrondi partout. Les espaceurs manuels sont supprimés, ainsi que la marge négative que Streamlit ajoute sous les blocs Markdown.
+- Préparation du repo public :
+  - `README.md` complet : problème, démo, résultats, architecture, stack, lancement, structure, feuille de route ;
+  - `assets/` : captures du dashboard (vue flotte, vue moteur) ;
+  - retrait d'un document de travail interne.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
