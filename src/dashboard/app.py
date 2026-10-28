@@ -29,16 +29,16 @@ ACCENT = "#2DD4BF"
 
 # Seuils de risque (en cycles restants) et couleurs associées, utilisés partout
 CRITICAL_RUL, ALERT_RUL = 30, 60
-STATUS_COLORS = {"Critique": "#EF4444", "Alerte": "#F59E0B", "Sain": "#10B981"}
+STATUS_COLORS = {"Critical": "#EF4444", "Warning": "#F59E0B", "Healthy": "#10B981"}
 
 # Capteurs affichés dans la vue moteur (nom C-MAPSS + grandeur physique)
 SENSOR_LABELS = {
-    "sensor_2": "T24 · temp. sortie LPC (°R)",
-    "sensor_4": "T50 · temp. sortie LPT (°R)",
-    "sensor_7": "P30 · pression sortie HPC (psia)",
-    "sensor_11": "Ps30 · pression statique HPC (psia)",
-    "sensor_12": "phi · débit carburant / Ps30",
-    "sensor_15": "BPR · taux de dilution",
+    "sensor_2": "T24 · LPC outlet temp. (°R)",
+    "sensor_4": "T50 · LPT outlet temp. (°R)",
+    "sensor_7": "P30 · HPC outlet pressure (psia)",
+    "sensor_11": "Ps30 · HPC static pressure (psia)",
+    "sensor_12": "phi · fuel flow / Ps30",
+    "sensor_15": "BPR · bypass ratio",
 }
 
 CSS = f"""
@@ -142,10 +142,10 @@ table.fleet tr:hover td {{ background: #20273A; }}
 def risk_status(rul: float) -> str:
     """Statut de risque à partir de la RUL prédite (seuils exclusifs)."""
     if rul < CRITICAL_RUL:
-        return "Critique"
+        return "Critical"
     if rul < ALERT_RUL:
-        return "Alerte"
-    return "Sain"
+        return "Warning"
+    return "Healthy"
 
 
 @st.cache_resource
@@ -210,29 +210,29 @@ def render_topbar(fleet: pd.DataFrame) -> None:
     """Barre d'en-tête : titre à gauche, pastille d'état de la flotte à droite."""
     counts = fleet["status"].value_counts()
     items = [
-        ("#64748B", f"{len(fleet)} moteurs"),
-        (STATUS_COLORS["Critique"], f"{counts.get('Critique', 0)} critiques"),
-        (STATUS_COLORS["Alerte"], f"{counts.get('Alerte', 0)} en alerte"),
+        ("#64748B", f"{len(fleet)} engines"),
+        (STATUS_COLORS["Critical"], f"{counts.get('Critical', 0)} critical"),
+        (STATUS_COLORS["Warning"], f"{counts.get('Warning', 0)} warning"),
     ]
     # Le point coloré porte le statut, le texte reste dans la couleur du texte (lisibilité)
     pill = '<span class="sep">·</span>'.join(
         f'<span class="item"><span class="dot" style="--c:{c}"></span>{label}</span>' for c, label in items
     )
     st.markdown(
-        '<div class="topbar"><div class="topbar-title">Supervision prédictive de la flotte</div>'
+        '<div class="topbar"><div class="topbar-title">Predictive fleet monitoring</div>'
         f'<div class="status-pill">{pill}</div></div>',
         unsafe_allow_html=True,
     )
 
 
 def render_kpis(fleet: pd.DataFrame) -> None:
-    n_crit = int((fleet["status"] == "Critique").sum())
-    n_alert = int((fleet["status"] == "Alerte").sum())
+    n_crit = int((fleet["status"] == "Critical").sum())
+    n_alert = int((fleet["status"] == "Warning").sum())
     cards = [
-        kpi_card("Moteurs critiques", str(n_crit), f"RUL prédite &lt; {CRITICAL_RUL} cycles", STATUS_COLORS["Critique"]),
-        kpi_card("Moteurs en alerte", str(n_alert), f"RUL entre {CRITICAL_RUL} et {ALERT_RUL} cycles", STATUS_COLORS["Alerte"]),
-        kpi_card("RUL moyenne prédite", f"{fleet['rul_pred'].mean():.0f}", "sur l'ensemble de la flotte", ACCENT, "cycles"),
-        kpi_card("Moteurs suivis", str(len(fleet)), "jeu de test NASA C-MAPSS FD001", "#64748B"),
+        kpi_card("Critical engines", str(n_crit), f"Predicted RUL &lt; {CRITICAL_RUL} cycles", STATUS_COLORS["Critical"]),
+        kpi_card("Warning engines", str(n_alert), f"RUL between {CRITICAL_RUL} and {ALERT_RUL} cycles", STATUS_COLORS["Warning"]),
+        kpi_card("Mean predicted RUL", f"{fleet['rul_pred'].mean():.0f}", "across the whole fleet", ACCENT, "cycles"),
+        kpi_card("Engines monitored", str(len(fleet)), "NASA C-MAPSS FD001 test set", "#64748B"),
     ]
     for col, card in zip(st.columns(4, gap="medium"), cards):
         col.markdown(card, unsafe_allow_html=True)
@@ -241,41 +241,42 @@ def render_kpis(fleet: pd.DataFrame) -> None:
 def render_fleet(fleet: pd.DataFrame) -> None:
     # Graphique : une barre par moteur, triée par RUL croissante, couleur = statut
     with st.container(key="card_fleet_chart"):
-        section("RUL prédite par moteur", "Triés du plus urgent au plus sain · survolez une barre pour le détail")
+        section("Predicted RUL per engine", "Sorted from most urgent to healthiest · hover over a bar for details")
         fig = go.Figure(go.Bar(
-            x=[f"M{u:03d}" for u in fleet["unit"]],
+            x=[f"#{u:03d}" for u in fleet["unit"]],
             y=fleet["rul_pred"],
             marker=dict(color=fleet["status"].map(STATUS_COLORS), line=dict(width=0)),
             customdata=fleet[["status", "cycles"]],
-            hovertemplate="<b>Moteur %{x}</b><br>RUL prédite : %{y:.0f} cycles"
-                          "<br>Statut : %{customdata[0]}<br>Cycles observés : %{customdata[1]}<extra></extra>",
+            hovertemplate="<b>Engine %{x}</b><br>Predicted RUL: %{y:.0f} cycles"
+                          "<br>Status: %{customdata[0]}<br>Observed cycles: %{customdata[1]}<extra></extra>",
         ))
         # Lignes de seuil
-        for y, status in ((CRITICAL_RUL, "Critique"), (ALERT_RUL, "Alerte")):
+        for y, status in ((CRITICAL_RUL, "Critical"), (ALERT_RUL, "Warning")):
             fig.add_hline(y=y, line=dict(color=STATUS_COLORS[status], width=1, dash="dot"),
-                          annotation_text=f"seuil {status.lower()} · {y}", annotation_position="top left",
+                          annotation_text=f"{status.lower()} threshold · {y}", annotation_position="top left",
                           annotation_font=dict(color=STATUS_COLORS[status], size=11))
         fig.update_layout(bargap=0.25, barcornerradius=3, showlegend=False)
-        fig.update_xaxes(showgrid=False, showticklabels=False, title=None)
-        fig.update_yaxes(title=dict(text="RUL prédite (cycles)", font=dict(color=MUTED)), range=[0, 130])
+        # Axe forcé en catégories : sinon Plotly lit "#081" comme le nombre 81 et perd le tri par RUL
+        fig.update_xaxes(type="category", showgrid=False, showticklabels=False, title=None)
+        fig.update_yaxes(title=dict(text="Predicted RUL (cycles)", font=dict(color=MUTED)), range=[0, 130])
         st.plotly_chart(style_fig(fig, 360), use_container_width=True, config={"displayModeBar": False})
 
     # Tableau : trié par risque (RUL croissante), badge de statut et mini-barre de RUL
     with st.container(key="card_fleet_table"):
-        section("Registre de la flotte", "Classement par risque · la RUL réelle sert de référence pour juger le modèle")
+        section("Fleet registry", "Ranked by risk · true RUL shown as a reference to assess the model")
         rows = []
         for r in fleet.itertuples():
             color = STATUS_COLORS[r.status]
             pct = r.rul_pred / 125 * 100
             rows.append(
-                f"<tr><td><b>Moteur {r.unit:03d}</b></td><td>{badge(r.status)}</td>"
+                f"<tr><td><b>Engine {r.unit:03d}</b></td><td>{badge(r.status)}</td>"
                 f'<td><div class="rulbar"><span>{r.rul_pred:.0f}</span><div class="rulbar-track">'
                 f'<div class="rulbar-fill" style="width:{pct:.0f}%;--c:{color}"></div></div></div></td>'
                 f"<td>{r.cycles}</td><td>{r.rul_true:.0f}</td><td>{round(r.rul_pred - r.rul_true):+d}</td></tr>"
             )
         table = (
-            '<div class="table-wrap"><table class="fleet"><thead><tr><th>Moteur</th><th>Statut</th>'
-            "<th>RUL prédite</th><th>Cycles observés</th><th>RUL réelle</th><th>Écart</th></tr></thead>"
+            '<div class="table-wrap"><table class="fleet"><thead><tr><th>Engine</th><th>Status</th>'
+            "<th>Predicted RUL</th><th>Observed cycles</th><th>True RUL</th><th>Error</th></tr></thead>"
             f"<tbody>{''.join(rows)}</tbody></table></div>"
         )
         st.markdown(table, unsafe_allow_html=True)
@@ -285,16 +286,16 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
     # Sélecteur : moteurs classés par urgence, le plus critique par défaut
     by_unit = fleet.set_index("unit")
     unit = st.selectbox(
-        "Moteur",
+        "Engine",
         fleet["unit"].tolist(),
-        format_func=lambda u: f"Moteur {u:03d} · {by_unit.loc[u, 'status']} · RUL {by_unit.loc[u, 'rul_pred']:.0f} cycles",
+        format_func=lambda u: f"Engine {u:03d} · {by_unit.loc[u, 'status']} · RUL {by_unit.loc[u, 'rul_pred']:.0f} cycles",
     )
     row = by_unit.loc[unit]
 
     left, right = st.columns([1, 2.2], gap="medium")
 
     with left, st.container(key="card_gauge"):
-        section("RUL prédite", "Dernière fenêtre de 30 cycles")
+        section("Predicted RUL", "Last 30-cycle window")
         gauge = go.Figure(go.Indicator(
             # La valeur est affichée en HTML sous la jauge (Plotly la superpose à l'arc)
             mode="gauge",
@@ -321,16 +322,16 @@ def render_engine(test: pd.DataFrame, fleet: pd.DataFrame) -> None:
             f'<div class="gauge-value">{row["rul_pred"]:.0f}<span>/125 cycles</span></div>'
             f'<div style="text-align:center;margin:0.4rem 0 0.75rem 0">{badge(row["status"])}</div>'
             '<div class="info-grid">'
-            f'<div class="info"><div class="info-label">Cycles observés</div><div class="info-value">{row["cycles"]}</div></div>'
-            f'<div class="info"><div class="info-label">RUL réelle</div><div class="info-value">{row["rul_true"]:.0f}</div></div>'
-            f'<div class="info"><div class="info-label">Écart modèle</div><div class="info-value">{round(row["rul_pred"] - row["rul_true"]):+d}</div></div>'
-            f'<div class="info"><div class="info-label">Rang de risque</div><div class="info-value">{fleet.index[fleet["unit"] == unit][0] + 1} / {len(fleet)}</div></div>'
+            f'<div class="info"><div class="info-label">Observed cycles</div><div class="info-value">{row["cycles"]}</div></div>'
+            f'<div class="info"><div class="info-label">True RUL</div><div class="info-value">{row["rul_true"]:.0f}</div></div>'
+            f'<div class="info"><div class="info-label">Model error</div><div class="info-value">{round(row["rul_pred"] - row["rul_true"]):+d}</div></div>'
+            f'<div class="info"><div class="info-label">Risk rank</div><div class="info-value">{fleet.index[fleet["unit"] == unit][0] + 1} / {len(fleet)}</div></div>'
             "</div>",
             unsafe_allow_html=True,
         )
 
     with right, st.container(key="card_sensors"):
-        section("Capteurs principaux", "Valeurs brutes au fil des cycles · zone grisée = fenêtre utilisée par le modèle")
+        section("Key sensors", "Raw values over cycles · shaded area = window used by the model")
         d = test[test["unit_number"] == unit].sort_values("time_in_cycles")
         last_cycle = d["time_in_cycles"].max()
         fig = make_subplots(rows=3, cols=2, subplot_titles=list(SENSOR_LABELS.values()),
@@ -353,22 +354,22 @@ def render_sidebar(fleet: pd.DataFrame, cfg: dict) -> str:
     with st.sidebar:
         st.markdown(
             '<div class="brand"><div class="brand-title">PdM <span>Copilot</span></div>'
-            '<div class="brand-sub">Maintenance prédictive · NASA C-MAPSS</div></div>',
+            '<div class="brand-sub">Predictive maintenance · NASA C-MAPSS</div></div>',
             unsafe_allow_html=True,
         )
-        view = st.radio("Navigation", ["Vue Flotte", "Vue Moteur"], label_visibility="collapsed")
+        view = st.radio("Navigation", ["Fleet View", "Engine View"], label_visibility="collapsed")
 
         rmse = ((fleet["rul_pred"] - fleet["rul_true"]) ** 2).mean() ** 0.5
         st.markdown(
-            '<div class="side-label">Modèle</div>'
+            '<div class="side-label">Model</div>'
             '<div class="side-row"><span>Architecture</span><span>LSTM</span></div>'
-            f'<div class="side-row"><span>Fenêtre</span><span>{cfg["window_size"]} cycles</span></div>'
-            f'<div class="side-row"><span>Plafond RUL</span><span>{cfg["cap"]} cycles</span></div>'
-            f'<div class="side-row"><span>RMSE test</span><span>{rmse:.2f}</span></div>'
-            '<div class="side-label">Seuils de risque</div>'
-            f'<div class="side-row">{badge("Critique")}<span>&lt; {CRITICAL_RUL}</span></div>'
-            f'<div class="side-row">{badge("Alerte")}<span>{CRITICAL_RUL} – {ALERT_RUL}</span></div>'
-            f'<div class="side-row">{badge("Sain")}<span>≥ {ALERT_RUL}</span></div>',
+            f'<div class="side-row"><span>Window</span><span>{cfg["window_size"]} cycles</span></div>'
+            f'<div class="side-row"><span>RUL cap</span><span>{cfg["cap"]} cycles</span></div>'
+            f'<div class="side-row"><span>Test RMSE</span><span>{rmse:.2f}</span></div>'
+            '<div class="side-label">Risk thresholds</div>'
+            f'<div class="side-row">{badge("Critical")}<span>&lt; {CRITICAL_RUL}</span></div>'
+            f'<div class="side-row">{badge("Warning")}<span>{CRITICAL_RUL} – {ALERT_RUL}</span></div>'
+            f'<div class="side-row">{badge("Healthy")}<span>≥ {ALERT_RUL}</span></div>',
             unsafe_allow_html=True,
         )
     return view
@@ -383,8 +384,8 @@ def main() -> None:
     view = render_sidebar(fleet, cfg)
 
     subtitles = {
-        "Vue Flotte": "État de santé de la flotte · RUL prédite par le LSTM sur la dernière fenêtre de chaque moteur",
-        "Vue Moteur": "Diagnostic d'un moteur · RUL prédite et évolution des capteurs",
+        "Fleet View": "Fleet health overview · RUL predicted by the LSTM from each engine's last window",
+        "Engine View": "Single-engine diagnosis · predicted RUL and sensor trends",
     }
     # Tout le contenu principal dans un seul conteneur : l'écart entre cartes y est fixé par --gap
     with st.container(key="page"):
@@ -393,7 +394,7 @@ def main() -> None:
                     unsafe_allow_html=True)
         render_kpis(fleet)
 
-        if view == "Vue Flotte":
+        if view == "Fleet View":
             render_fleet(fleet)
         else:
             render_engine(test, fleet)

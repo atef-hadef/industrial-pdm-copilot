@@ -40,8 +40,8 @@ The Streamlit dashboard uses a "control room" look. It ranks every engine by ris
 
 <table>
   <tr>
-    <td width="50%"><img src="assets/dashboard-flotte.png" alt="Fleet view"></td>
-    <td width="50%"><img src="assets/dashboard-moteur.png" alt="Engine view"></td>
+    <td width="50%"><img src="assets/dashboard-fleet.png" alt="Fleet view"></td>
+    <td width="50%"><img src="assets/dashboard-engine.png" alt="Engine view"></td>
   </tr>
   <tr>
     <td><b>Fleet view</b>: predicted RUL for all 100 engines, sorted by urgency, with a fleet registry and status badges.</td>

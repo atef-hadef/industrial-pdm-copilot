@@ -49,6 +49,15 @@ Toutes les évolutions notables du projet sont consignées ici.
   - URL de clonage GitHub.
 - `LICENSE` : licence MIT (Atef Ben Hadef).
 - `README.md` traduit en anglais, avec la même structure : badges, GIF, diagramme Mermaid, captures, résultats, « Key Engineering Decisions ».
+- Dashboard traduit en anglais (textes affichés seulement ; design, couleurs et logique inchangés) :
+  - navigation « Fleet View » / « Engine View » ;
+  - statuts Critical / Warning / Healthy ;
+  - KPI, en-tête, jauge, capteurs, « Fleet registry ».
+- Graphique d'évaluation (`evaluate.py`) traduit en anglais.
+- Visuels régénérés en anglais et renommés : `dashboard-fleet.png`, `dashboard-engine.png`, `dashboard-demo.gif`, `eval-fd001.png`.
+
+### Corrigé
+- Graphique de la flotte : axe X forcé en catégories. Plotly lisait les libellés `#081` comme des nombres et perdait le tri par RUL.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.

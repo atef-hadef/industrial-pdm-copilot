@@ -77,13 +77,13 @@ def plot_predictions(
     ax.set_axisbelow(True)
 
     # Vraie RUL en trait, prédiction en points (palette catégorielle, ordre fixe)
-    ax.plot(x, y_true[order], color="#2a78d6", linewidth=2, label="RUL vraie (plafonnée à 125)")
+    ax.plot(x, y_true[order], color="#2a78d6", linewidth=2, label="True RUL (capped at 125)")
     ax.scatter(x, y_pred[order], color="#eb6834", s=22, edgecolors="white", linewidths=0.8,
-               zorder=3, label="RUL prédite (LSTM)")
+               zorder=3, label="Predicted RUL (LSTM)")
 
-    ax.set_title(f"Test {subset} : RUL prédite vs vraie  (RMSE {score_rmse:.2f}, score NASA {score_nasa:.0f})",
+    ax.set_title(f"{subset} test set: predicted vs. true RUL  (RMSE {score_rmse:.2f}, NASA score {score_nasa:.0f})",
                  fontsize=11, fontweight="bold")
-    ax.set_xlabel("Moteurs de test, triés par RUL vraie croissante")
+    ax.set_xlabel("Test engines, sorted by increasing true RUL")
     ax.set_ylabel("RUL (cycles)")
     ax.legend(frameon=False, loc="upper left")
     fig.tight_layout()
