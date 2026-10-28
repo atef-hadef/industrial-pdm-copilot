@@ -6,9 +6,12 @@ Toutes les évolutions notables du projet sont consignées ici.
 
 ### Ajouté
 - `src/data/labeling.py` : `add_rul(df, cap=125)` calcule la RUL du jeu train (cycle max du moteur − cycle courant), plafonnée à `cap` (RUL piecewise-linear) ; `cap=None` donne la RUL linéaire brute. Vérification via `python -m src.data.labeling`.
+- `src/data/preprocess.py` : `normalize(train, test)` garde les 14 capteurs utiles (`USEFUL_SENSORS`) et applique un min-max [0, 1] appris sur le train seulement, puis réappliqué au test (pas de fuite de données).
+- `src/data/windows.py` : `make_windows(df, window_size=30)` crée des fenêtres glissantes par moteur, X `(n_fenetres, 30, 14)` et y = RUL au dernier cycle de la fenêtre. Vérification via `python -m src.data.windows`.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
+- FD001 train fenêtré : X `(17731, 30, 14)`, y `(17731,)`. Après normalisation, les capteurs du test sortent légèrement de [0, 1] (de −0,04 à 1,08), ce qui est attendu.
 
 ## v0.1 - chargement + EDA (2026-10-28)
 
