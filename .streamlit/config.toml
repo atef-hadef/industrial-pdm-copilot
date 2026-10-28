@@ -1,0 +1,13 @@
+# Thème sombre "salle de contrôle" pour les widgets natifs de Streamlit
+[theme]
+base = "dark"
+primaryColor = "#2DD4BF"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1A1F2E"
+textColor = "#E5E7EB"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

@@ -21,6 +21,14 @@ Toutes les évolutions notables du projet sont consignées ici.
   - Les vraies RUL sont plafonnées à 125.
   - Calcul de la RMSE et du score NASA (asymétrique, pénalise davantage les prédictions tardives).
   - Graphique prédit vs vrai enregistré dans `reports/eval_fd001.png`.
+- `src/models/predict.py` : `load_model()` et `predict_rul()`, partagés par l'évaluation et le dashboard, avec le même calcul (dernière fenêtre, × cap, borné dans [0, 125]).
+- `src/dashboard/app.py` : dashboard Streamlit « salle de contrôle » (`streamlit run src/dashboard/app.py`).
+  - Thème sombre (CSS personnalisé + `.streamlit/config.toml`) et barre latérale de navigation.
+  - 4 cartes KPI : critiques (RUL < 30), alerte (30 à 60), RUL moyenne, total de moteurs.
+  - Vue Flotte : barres Plotly colorées par risque, avec les seuils, et registre trié par risque avec badges de statut.
+  - Vue Moteur : jauge Plotly à zones rouge/orange/vert, et courbes de 6 capteurs où la fenêtre de 30 cycles utilisée par le modèle est grisée.
+  - Le modèle est mis en cache (`@st.cache_resource`), ainsi que les prédictions de la flotte (`@st.cache_data`).
+- `requirements.txt` : ajout de `plotly` et `streamlit`.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.

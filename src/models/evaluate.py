@@ -5,20 +5,16 @@ Usage : python -m src.models.evaluate
 
 from pathlib import Path
 
-import joblib
 import matplotlib
 
 matplotlib.use("Agg")  # pas de fenêtre : le graphique est enregistré en PNG
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 from src.data.load import load_cmapss, load_rul
-from src.data.windows import last_windows
-from src.models.lstm import LSTMRegressor
+from src.models.predict import load_model, predict_rul
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "models"
 REPORTS_DIR = ROOT / "reports"
 
 
@@ -42,31 +38,20 @@ def nasa_score(y_pred: np.ndarray, y_true: np.ndarray) -> float:
 def evaluate(subset: str = "FD001") -> tuple[float, float]:
     """Prédit la RUL de chaque moteur de test et renvoie (RMSE, score NASA)."""
     # 1. Modèle et scaler sauvegardés par src.models.train
-    ckpt = torch.load(MODELS_DIR / "lstm_fd001.pt", weights_only=True)
-    cfg = ckpt["config"]
-    model = LSTMRegressor(cfg["n_features"], cfg["hidden_size"], cfg["num_layers"])
-    model.load_state_dict(ckpt["state_dict"])
-    model.eval()  # désactive le dropout
-    scaler = joblib.load(MODELS_DIR / "scaler_fd001.joblib")
+    model, scaler, cfg = load_model()
 
-    # 2. Test normalisé avec le scaler du train : transform seulement, JAMAIS fit
-    test = load_cmapss(subset, "test")
-    sensors = cfg["sensors"]
-    test[sensors] = scaler.transform(test[sensors])
+    # 2. Dernière fenêtre de chaque moteur de test -> RUL prédite
+    #    (normalisation avec le scaler du train : transform seulement, JAMAIS fit)
+    pred = predict_rul(load_cmapss(subset, "test"), model, scaler, cfg)
+    units, y_pred = pred.index.to_numpy(), pred.to_numpy()
 
-    # 3. Dernière fenêtre de chaque moteur -> RUL prédite
-    X, units = last_windows(test, cfg["window_size"], sensors)
-    with torch.no_grad():
-        y_pred = model(torch.from_numpy(X)).numpy() * cfg["cap"]  # sortie entre 0 et 1 -> cycles
-    y_pred = np.clip(y_pred, 0, cfg["cap"])
-
-    # 4. Vraie RUL, plafonnée comme les labels d'entraînement (pratique de la littérature)
+    # 3. Vraie RUL, plafonnée comme les labels d'entraînement (pratique de la littérature)
     y_true = load_rul(subset).loc[units].to_numpy().astype(np.float32)
     y_true = np.minimum(y_true, cfg["cap"])
 
     score_rmse = rmse(y_pred, y_true)
     score_nasa = nasa_score(y_pred, y_true)
-    print(f"=== Test {subset} : {len(units)} moteurs (modèle de l'epoch {ckpt['epoch']}) ===")
+    print(f"=== Test {subset} : {len(units)} moteurs (modèle de l'epoch {cfg['epoch']}) ===")
     print(f"RMSE       : {score_rmse:.2f} cycles")
     print(f"Score NASA : {score_nasa:.1f}")
 
