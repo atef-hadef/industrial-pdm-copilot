@@ -39,19 +39,19 @@ def add_rul(df: pd.DataFrame, cap: int | None = 125) -> pd.DataFrame:
 if __name__ == "__main__":
     cols = ["unit_number", "time_in_cycles", "RUL"]
     train = load_cmapss("FD001", "train")
-    brute = add_rul(train, cap=None)
-    plafonnee = add_rul(train, cap=125)
+    raw = add_rul(train, cap=None)
+    capped = add_rul(train, cap=125)
 
     # Check 1: the max RUL must equal the cap
-    print(f"Max RUL without cap: {brute['RUL'].max()}")
-    print(f"Max RUL with cap=125: {plafonnee['RUL'].max()}")
+    print(f"Max RUL without cap: {raw['RUL'].max()}")
+    print(f"Max RUL with cap=125: {capped['RUL'].max()}")
 
     # Check 2: engine 1, before / after capping
     print("\nEngine 1 - first 3 rows, no cap:")
-    print(brute.loc[brute["unit_number"] == 1, cols].head(3).to_string(index=False))
+    print(raw.loc[raw["unit_number"] == 1, cols].head(3).to_string(index=False))
     print("\nEngine 1 - first 3 rows, cap=125:")
-    print(plafonnee.loc[plafonnee["unit_number"] == 1, cols].head(3).to_string(index=False))
+    print(capped.loc[capped["unit_number"] == 1, cols].head(3).to_string(index=False))
 
     # Check 3: number of rows at the cap
-    n_cap = (plafonnee["RUL"] == 125).sum()
-    print(f"\nRows at the cap (RUL == 125): {n_cap} / {len(plafonnee)} ({n_cap / len(plafonnee):.1%})")
+    n_cap = (capped["RUL"] == 125).sum()
+    print(f"\nRows at the cap (RUL == 125): {n_cap} / {len(capped)} ({n_cap / len(capped):.1%})")
