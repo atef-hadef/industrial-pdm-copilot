@@ -91,7 +91,7 @@ venv\Scripts\activate            # Windows — Linux/macOS : source venv/bin/act
 pip install -r requirements.txt
 ```
 
-**2. Données** : le dataset n'est pas versionné. Téléchargez NASA C-MAPSS depuis le [NASA Prognostics Data Repository](https://www.nasa.gov/intelligent-systems-division/discovery-and-systems-health/pcoe/pcoe-data-set-repository/) ou depuis Kaggle (« NASA CMAPSS »). Placez ensuite `train_FD001.txt`, `test_FD001.txt` et `RUL_FD001.txt` dans `data/raw/`.
+**2. Données** : le dataset n'est pas versionné. Téléchargez [NASA Turbofan Jet Engine Data Set](https://www.kaggle.com/datasets/behrad3d/nasa-cmaps) sur Kaggle (copie du jeu C-MAPSS de la NASA, licence CC0). Placez ensuite `train_FD001.txt`, `test_FD001.txt` et `RUL_FD001.txt` dans `data/raw/`.
 
 Pour vérifier le chargement :
 ```bash
@@ -135,7 +135,6 @@ streamlit run src/dashboard/app.py
 ├── tests/
 ├── .streamlit/config.toml  thème sombre du dashboard
 ├── CHANGELOG.md
-├── Industrial-PdM-Copilot_SPEC.md   cahier des charges technique
 └── requirements.txt
 ```
 

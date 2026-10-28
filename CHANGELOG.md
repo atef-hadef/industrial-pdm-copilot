@@ -38,7 +38,8 @@ Toutes les évolutions notables du projet sont consignées ici.
 - Préparation du repo public :
   - `README.md` complet : problème, démo, résultats, architecture, stack, lancement, structure, feuille de route ;
   - `assets/` : captures du dashboard (vue flotte, vue moteur) ;
-  - retrait d'un document de travail interne.
+  - cahier des charges retiré du dépôt et de tout l'historique Git (document de travail interne) ;
+  - lien de téléchargement du dataset : « NASA Turbofan Jet Engine Data Set » sur Kaggle.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.

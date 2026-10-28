@@ -49,3 +49,6 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- Documents de travail internes (hors repo) ---
+Industrial-PdM-Copilot_SPEC.md
