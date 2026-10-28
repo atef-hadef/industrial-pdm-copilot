@@ -48,6 +48,7 @@ Toutes les évolutions notables du projet sont consignées ici.
   - section « Décisions d'ingénierie clés » ;
   - URL de clonage GitHub.
 - `LICENSE` : licence MIT (Atef Ben Hadef).
+- `README.md` traduit en anglais, avec la même structure : badges, GIF, diagramme Mermaid, captures, résultats, « Key Engineering Decisions ».
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
