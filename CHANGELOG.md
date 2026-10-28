@@ -8,10 +8,17 @@ Toutes les évolutions notables du projet sont consignées ici.
 - `src/data/labeling.py` : `add_rul(df, cap=125)` calcule la RUL du jeu train (cycle max du moteur − cycle courant), plafonnée à `cap` (RUL piecewise-linear) ; `cap=None` donne la RUL linéaire brute. Vérification via `python -m src.data.labeling`.
 - `src/data/preprocess.py` : `normalize(train, test)` garde les 14 capteurs utiles (`USEFUL_SENSORS`) et applique un min-max [0, 1] appris sur le train seulement, puis réappliqué au test (pas de fuite de données).
 - `src/data/windows.py` : `make_windows(df, window_size=30)` crée des fenêtres glissantes par moteur, X `(n_fenetres, 30, 14)` et y = RUL au dernier cycle de la fenêtre. Vérification via `python -m src.data.windows`.
+- `src/models/lstm.py` : `LSTMRegressor`, un LSTM 2 couches (hidden 64, dropout 0,2) suivi d'une couche linéaire, qui prédit la RUL au dernier cycle de la fenêtre.
+- `src/models/train.py` : entraînement du LSTM sur FD001 (`python -m src.models.train`).
+  - Découpage train/validation **par moteur** (80/20, seed 42), fait avant la normalisation et les fenêtres.
+  - MSE, Adam (lr 1e-3), 20 epochs, batch 256, avec la RMSE train/validation affichée à chaque epoch.
+  - La cible est divisée par le plafond pendant l'entraînement : avec la RUL brute (0–125), la RMSE validation n'était encore qu'à 47 après 20 epochs.
+  - Le meilleur modèle (selon la validation) est sauvegardé dans `models/lstm_fd001.pt`, avec le scaler dans `models/scaler_fd001.joblib`.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
 - FD001 train fenêtré : X `(17731, 30, 14)`, y `(17731,)`. Après normalisation, les capteurs du test sortent légèrement de [0, 1] (de −0,04 à 1,08), ce qui est attendu.
+- Premier LSTM : meilleure RMSE validation **14,23 cycles** (epoch 20, contre 13,00 en train). Elle est calculée sur toutes les fenêtres des 20 moteurs de validation, donc elle n'est pas encore comparable au benchmark test.
 
 ## v0.1 - chargement + EDA (2026-10-28)
 
