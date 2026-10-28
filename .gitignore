@@ -1,0 +1,51 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Environnements virtuels ---
+venv/
+.venv/
+env/
+.env
+
+# --- Données (C-MAPSS brut + traité, non versionnées) ---
+data/raw/
+data/processed/*
+!data/processed/.gitkeep
+
+# --- Modèles, checkpoints & artefacts ---
+models/*
+!models/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.joblib
+*.onnx
+checkpoints/
+mlruns/
+mlartifacts/
+artifacts/
+reports/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Tests / outils ---
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
