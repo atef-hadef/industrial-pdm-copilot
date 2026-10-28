@@ -45,6 +45,26 @@ def make_windows(
     return np.concatenate(X_parts), np.concatenate(y_parts)
 
 
+def last_windows(
+    df: pd.DataFrame, window_size: int = 30, features: list[str] = USEFUL_SENSORS
+) -> tuple[np.ndarray, np.ndarray]:
+    """Renvoie la DERNIÈRE fenêtre de chaque moteur (cas du jeu test, tronqué avant la panne).
+
+    Renvoie :
+    - X de forme (n_moteurs, window_size, n_features) ;
+    - les numéros de moteurs correspondants, dans le même ordre.
+    """
+    X_parts, units = [], []
+    for unit_number, unit in df.groupby("unit_number"):
+        values = unit.sort_values("time_in_cycles")[features].to_numpy(dtype=np.float32)
+        if len(values) < window_size:
+            raise ValueError(f"moteur {unit_number} : {len(values)} cycles < window_size={window_size}")
+        # Les window_size derniers cycles observés
+        X_parts.append(values[-window_size:])
+        units.append(unit_number)
+    return np.stack(X_parts), np.array(units)
+
+
 if __name__ == "__main__":
     # Pipeline FD001 : chargement -> RUL plafonnée -> normalisation -> fenêtres
     train = add_rul(load_cmapss("FD001", "train"), cap=125)

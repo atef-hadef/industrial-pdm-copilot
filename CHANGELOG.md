@@ -14,11 +14,19 @@ Toutes les évolutions notables du projet sont consignées ici.
   - MSE, Adam (lr 1e-3), 20 epochs, batch 256, avec la RMSE train/validation affichée à chaque epoch.
   - La cible est divisée par le plafond pendant l'entraînement : avec la RUL brute (0–125), la RMSE validation n'était encore qu'à 47 après 20 epochs.
   - Le meilleur modèle (selon la validation) est sauvegardé dans `models/lstm_fd001.pt`, avec le scaler dans `models/scaler_fd001.joblib`.
+- `src/data/windows.py` : `last_windows(df, window_size=30)` renvoie la dernière fenêtre de chaque moteur (cas du jeu test).
+- `src/models/evaluate.py` : évaluation sur le test FD001 (`python -m src.models.evaluate`).
+  - Le test est normalisé avec le scaler sauvegardé, sans nouveau fit.
+  - Le modèle prédit la RUL à partir de la dernière fenêtre de chaque moteur ; la prédiction est remise en cycles (× 125) puis bornée dans [0, 125].
+  - Les vraies RUL sont plafonnées à 125.
+  - Calcul de la RMSE et du score NASA (asymétrique, pénalise davantage les prédictions tardives).
+  - Graphique prédit vs vrai enregistré dans `reports/eval_fd001.png`.
 
 ### Constaté
 - FD001 train avec `cap=125` : 8 131 lignes sur 20 631 (39,4 %) sont au plafond.
 - FD001 train fenêtré : X `(17731, 30, 14)`, y `(17731,)`. Après normalisation, les capteurs du test sortent légèrement de [0, 1] (de −0,04 à 1,08), ce qui est attendu.
 - Premier LSTM : meilleure RMSE validation **14,23 cycles** (epoch 20, contre 13,00 en train). Elle est calculée sur toutes les fenêtres des 20 moteurs de validation, donc elle n'est pas encore comparable au benchmark test.
+- **Test FD001 (100 moteurs, dernière fenêtre) : RMSE 13,47 cycles, score NASA 318,5.** 56 prédictions sont tardives et 44 précoces ; la plus grosse erreur est −46,2 cycles (moteur 93).
 
 ## v0.1 - chargement + EDA (2026-10-28)
 
