@@ -5,6 +5,7 @@
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![CI](https://github.com/atef-hadef/industrial-pdm-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/atef-hadef/industrial-pdm-copilot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2DD4BF.svg)](LICENSE)
 
 ![Dashboard demo](assets/dashboard-demo.gif)
@@ -144,7 +145,14 @@ python -m src.models.train
 python -m src.models.evaluate
 ```
 
-**5. Dashboard**: run it from the repo root so that the `.streamlit/config.toml` theme is picked up.
+**5. Tests**: 12 unit tests cover RUL labeling, leakage-free scaling and sliding windows.
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+**6. Dashboard**: run it from the repo root so that the `.streamlit/config.toml` theme is picked up.
 
 ```bash
 streamlit run src/dashboard/app.py
@@ -169,7 +177,8 @@ industrial-pdm-copilot/
 │   ├── api/                (phase 2) FastAPI service
 │   ├── mlops/              (phase 2) MLflow, drift monitoring
 │   └── rag/                (phase 3) generative AI copilot
-├── tests/
+├── tests/                  pytest suite for the data pipeline
+├── .github/workflows/      CI (tests on Python 3.11 and 3.12)
 ├── .streamlit/config.toml  dashboard dark theme
 ├── CHANGELOG.md
 ├── LICENSE
@@ -184,7 +193,7 @@ industrial-pdm-copilot/
   - **FastAPI** service (`/predict`, `/health`);
   - **Docker** / docker-compose packaging;
   - data drift monitoring;
-  - tests and CI.
+  - model and API tests (the data-pipeline tests and a GitHub Actions workflow are already in place).
 - [ ] **Phase 3: Generative AI copilot (RAG).** An agent that takes an at-risk engine, retrieves the relevant procedures from `manuals/`, explains the diagnosis **with cited sources**, then drafts a structured **work order** (actions, priority, maintenance window).
 
 See [CHANGELOG.md](CHANGELOG.md) for the full change history.
